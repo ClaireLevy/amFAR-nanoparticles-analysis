@@ -1,0 +1,117 @@
+---
+title: "Proliferation experiments analysis"
+author: "Claire Levy"
+output: html_document
+---
+
+
+
+## Proliferation assay 001: MPA
+
+### Goal
+Assess anti-proliferative effects of 3 different MPA treatments (free drug and two nanoparticle formulations) in human PBMC (two donors) using two activation methods (beads and cytokines). 
+
+### Treatments
+
+1. Free MPA
+2. MPA loaded LCNP (physically encapsulated)
+3. MPA conjugated LCNP (conjugated with PLGA)
+
+### Stimulations
+
+IL2 and CD3/CD28 beads (5 days, “antigenic”)
+IL2,IL15,IL7 (7 days, “homeostatic”)
+
+
+### Doses
+ We did titrations in 2- fold steps
+	Free MPA: 1.6-0.00625 ug/mL and 0
+	MPA loaded LCNP: 1.6-0.00625 ug/mL and 0
+	MPA conjugated LCNP, use 50x more than others, 80-0.3125 ug/mL and 0
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(plater)
+library(stringr)
+
+```
+
+
+```{r read in plate layouts metadata}
+
+layouts001_dir<-"../001 proliferation MPA/plate_layouts"
+
+layouts001_files <-paste0(layouts001_dir,"/", list.files(layouts001_dir))
+
+
+#giving a plate name with same values as those in the PLATE NAME column in the flowjo files.
+layouts001<- read_plates(layouts001_files, plate_names = c("IL2_CD3_CD28_1801", "IL2_CD3_CD28_5140","IL2_IL7_IL15_1801", "IL2_IL7_IL15_5140"))
+
+
+names(layouts001)[1]<-"PLATE NAME"
+```
+
+
+```{r read in flowjo data}
+
+#read in data tables from flowjo: There is one for the bead stimulated samples and one for the cytokine stimulated ones for each donor. 
+
+data001_dir<-"../001 proliferation MPA/data/flowjo_tables"
+
+data001_files <-paste0(data001_dir,"/", list.files(data001_dir))
+
+#read in as a list of dfs
+data001<-lapply(data001_files, FUN = read.csv)
+
+#bind into one df
+data001<-bind_rows(data001)
+
+
+#clean up the col names so it's not terrible
+
+colnames(data001)<-c("Wells","live","CD14_neg","CD3","CD4","CD4_proliferated","CD8","CD8_proliferated","PLATE NAME","X.1")
+
+
+#The well column is messed up, I only want the first 3 characters and I don't want the empty last column ("X.1") AND I don't want the rows with entries for "Mean" and "SD" in the Wells column
+     
+data001<-data001 %>%
+  mutate(Wells = substr(Wells, 1,3))%>%
+  select(-X.1)%>%
+  filter(Wells != "SD" & Wells != "Mean" & Wells != "Mea")
+
+```
+
+```{r merge metadata and flowjo data}
+merge_data001<- merge(layouts001, data001, by = c("Wells", "PLATE NAME"))
+```
+
+```{r plot viability}
+
+ggplot(merge_data001,aes(x = ug_per_mL_MPA, y = live))+
+  geom_point(aes(),color = "lightblue")+
+  facet_grid(Stimulation~Formulation, scales = "free_x")+
+  stat_summary(fun.y = mean, geom = "line")
+```
+
+
+Big difference between donors here for the cytokine stimulated condition... check the gates here.
+
+```{r plot percent proliferated CD4}
+ggplot(merge_data001,aes(x = ug_per_mL_MPA, y = CD4_proliferated))+
+  geom_point(aes(color=Donor), alpha = 0.5)+
+  facet_grid(Stimulation~Formulation, scales = "free_x")+
+  stat_summary(fun.y = mean, geom = "line")
+```
+
+Donors similar here.
+
+```{r plot percent proliferated CD8}
+ggplot(merge_data001,aes(x = ug_per_mL_MPA, y = CD8_proliferated))+
+  geom_point(aes(color=Donor), alpha = 0.5)+
+  facet_grid(Stimulation~Formulation, scales = "free_x")+
+  stat_summary(fun.y = mean, geom = "line")
+```
