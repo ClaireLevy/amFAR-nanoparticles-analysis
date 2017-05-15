@@ -1,7 +1,7 @@
 ---
 title: "Proliferation experiments analysis"
 author: "Claire Levy"
-output: html_document
+output: github_document
 ---
 
 
@@ -9,7 +9,7 @@ output: html_document
 ## Proliferation assay 001: MPA
 
 ### Goal
-Assess anti-proliferative effects of 3 different MPA treatments (free drug and two nanoparticle formulations) in human PBMC (two donors) using two activation methods (beads and cytokines). 
+Assess anti-proliferative effects of 3 different MPA treatments (free drug and two nanoparticle formulations) in human PBMC from two HIV - donors, using two activation methods (beads and cytokines). 
 
 ### Treatments
 
@@ -19,17 +19,34 @@ Assess anti-proliferative effects of 3 different MPA treatments (free drug and t
 
 ### Stimulations
 
-IL2 and CD3/CD28 beads (5 days, “antigenic”)
-IL2,IL15,IL7 (7 days, “homeostatic”)
+All cells were treated with IL2 and one of the following stimulation cocktails:
+
+Beads: CD3/CD28 beads (5 days, “antigenic”)
+
+Cytokines:IL15,IL7 (7 days, “homeostatic”)
+
+
 
 
 ### Doses
- We did titrations in 2- fold steps
-	Free MPA: 1.6-0.00625 ug/mL and 0
-	MPA loaded LCNP: 1.6-0.00625 ug/mL and 0
-	MPA conjugated LCNP, use 50x more than others, 80-0.3125 ug/mL and 0
 
+We did titrations of MPA in 2-fold steps:
+ 
+Free MPA: 1.6-0.00625 $\mu$g/mL and 0
+	
+MPA loaded LCNP: 1.6-0.00625 $\mu$g/mL and 0
+	
+MPA conjugated LCNP, use 50x more than others, 80-0.3125 $\mu$g/mL and 0
 
+### Replicates
+
+All treatments were done with two replicates per donor.
+
+### Caveats
+
+It was somewhat difficult to completely resuspend the nanoparticle formulations in the media. We vortexed and sonicated but for both formulations were left with some aggregates that we couldnt get rid of. 
+
+We ran out of the Ab that we were using for CD4 staining so we had to use less that the amount called for in the protocol. The results looked ok though and we were able to see clear CD4+ populations.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
@@ -73,7 +90,7 @@ data001<-bind_rows(data001)
 
 #clean up the col names so it's not terrible
 
-colnames(data001)<-c("Wells","live","CD14_neg","CD3","CD4","CD4_proliferated","CD8","CD8_proliferated","PLATE NAME","X.1")
+colnames(data001)<-c("Wells","PLATE NAME","live","CD14_neg","CD3","CD4","CD4_proliferated","CD8","CD8_proliferated","X.1")
 
 
 #The well column is messed up, I only want the first 3 characters and I don't want the empty last column ("X.1") AND I don't want the rows with entries for "Mean" and "SD" in the Wells column
@@ -87,31 +104,64 @@ data001<-data001 %>%
 
 ```{r merge metadata and flowjo data}
 merge_data001<- merge(layouts001, data001, by = c("Wells", "PLATE NAME"))
+
+#make it more clear that the conjugated MPA is 50X more concentrated than the other ones:
+
+
+
+merge_data001<-merge_data001 %>%
+mutate(Formulation = str_replace(Formulation,"MPA conjugated NP", "50X MPA conjugated NP"))%>%
+  mutate(Stimulation = str_replace(Stimulation, "IL2_IL7_IL15", "Cytokines"))%>%
+  mutate(Stimulation = str_replace(Stimulation,"IL2_CD3_CD28", "Beads"))
+
+
+
+merge_data001$Formulation<-factor(merge_data001$Formulation, levels = c("Free drug", "MPA loaded NP", "50X MPA conjugated NP"))
 ```
+## Results
+
+### Viability
+
+In general, viability decreases as the MPA concentration increases. The decrease is somewhat more dramatic for the cytokine stimulated cells. The black line represents the average viability between the two donors.
 
 ```{r plot viability}
 
 ggplot(merge_data001,aes(x = ug_per_mL_MPA, y = live))+
-  geom_point(aes(),color = "lightblue")+
+  geom_point(aes(color = Donor), alpha = 0.5)+
   facet_grid(Stimulation~Formulation, scales = "free_x")+
-  stat_summary(fun.y = mean, geom = "line")
+  stat_summary(fun.y = mean, geom = "line")+
+  ggtitle("Percent viability: all cells")+
+  scale_x_log10()+
+  labs(y = "Percent Live", x = "\U03BCg/mL MPA")
 ```
 
+### Proliferation: CD4+ and CD8+ T cells
 
-Big difference between donors here for the cytokine stimulated condition... check the gates here.
+Proliferation started out higher for the CD3/CD28 bead stimulated cells and there was also more variation between the two donors for this condition.
+
+For all conditions except cytokine-stimulated cells with MPA conjugated NP, proliferation dropped off at around 0.1$\mu$g/mL for Free drug and MPA loaded NP and around 5$\mu$g/mL for MPA conjugated NP.
+
+
+The point for 5140 cytokine stimulated MPA loaded NP with proliferation at 100% is because there was only a single cell counted and it fell in the proliferated gate for CTV.
 
 ```{r plot percent proliferated CD4}
 ggplot(merge_data001,aes(x = ug_per_mL_MPA, y = CD4_proliferated))+
   geom_point(aes(color=Donor), alpha = 0.5)+
   facet_grid(Stimulation~Formulation, scales = "free_x")+
-  stat_summary(fun.y = mean, geom = "line")
+  stat_summary(fun.y = mean, geom = "line")+
+  ggtitle("Percent proliferation of CD4+ cells")+
+  scale_x_log10()+
+  labs(y = "Percent Proliferated", x = "\U03BCg/mL MPA")
 ```
 
-Donors similar here.
 
 ```{r plot percent proliferated CD8}
 ggplot(merge_data001,aes(x = ug_per_mL_MPA, y = CD8_proliferated))+
   geom_point(aes(color=Donor), alpha = 0.5)+
   facet_grid(Stimulation~Formulation, scales = "free_x")+
-  stat_summary(fun.y = mean, geom = "line")
+  stat_summary(fun.y = mean, geom = "line")+
+  ggtitle("Percent proliferation of CD8+ cells")+
+  scale_x_log10()+
+  labs(y = "Percent Proliferated", x = "\U03BCg/mL MPA")
 ```
+
