@@ -39,7 +39,7 @@ All treatments were done with two replicates per donor.
 
 ### Caveats
 
-It was somewhat difficult to completely resuspend the nanoparticle formulations in the media. We vortexed and sonicated but for both formulations were left with some aggregates that we couldnt get rid of.
+It was somewhat difficult to completely resuspend the nanoparticle formulations in the media. We vortexed and sonicated but for both formulations were left with some aggregates that we couldn't get rid of.
 
 We ran out of the Ab that we were using for CD4 staining so we had to use less that the amount called for in the protocol. The results looked ok though and we were able to see clear CD4+ populations.
 
@@ -48,7 +48,9 @@ Results
 
 ### Viability
 
-In general, viability decreases as the MPA concentration increases. The decrease is somewhat more dramatic for the cytokine stimulated cells. The black line represents the average viability between the two donors.
+In general, viability decreases as the MPA concentration increases. The decrease is somewhat more dramatic for the cytokine stimulated cells.
+
+The black line represents the average viability between the two donors and the shape indicates if there were fewer than 1,000 cells in the live gate.
 
 ![](proliferation_experiments_analysis_files/figure-markdown_github/plot%20viability-1.png)
 
@@ -56,9 +58,9 @@ In general, viability decreases as the MPA concentration increases. The decrease
 
 Proliferation started out higher for the CD3/CD28 bead stimulated cells and there was also more variation between the two donors for this condition.
 
-For all conditions except cytokine-stimulated cells with MPA conjugated NP, proliferation dropped off at around 0.1*μ*g/mL for Free drug and MPA loaded NP and around 5*μ*g/mL for MPA conjugated NP.
+Proliferation dropped off at the same point in the titration for all conditions except for 50X MPA conj. NP with cytokine stim, where the pattern is different.
 
-The point for 5140 cytokine stimulated MPA loaded NP with proliferation at 100% is because there was only a single cell counted and it fell in the proliferated gate for CTV.
+The shapes indicate if there were less than 100 cells in the CD4+ or CD8+ gate.
 
 ![](proliferation_experiments_analysis_files/figure-markdown_github/plot%20percent%20proliferated%20CD4-1.png)
 
