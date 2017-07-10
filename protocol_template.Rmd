@@ -158,12 +158,15 @@ We need `r ((total_wells(3, 3,1,2,2)* drug_vol)/number_drug_preparations)`uL per
 
 ```{r}
 
-PMA<-how_much_to_use(1, .1, 1.5)
-Iono<- how_much_to_use(35,uM_to_ug_per_mL(709.018,2), 1.5)
-T20<-round(1500/22.5, digits = 2)
+mL_OF_2X_DRUG <- 1.5
+uL_OF_2X_DRUG <- mL_OF_2X_DRUG * 1000
 
-Bryo<-how_much_to_use(2000, 20, 1.5)
-DMSO<-1500/100
+PMA<-how_much_to_use(1, .1, mL_OF_2X_DRUG)
+Iono<- how_much_to_use(35,uM_to_ug_per_mL(709.018,2), mL_OF_2X_DRUG)
+T20<-round(uL_OF_2X_DRUG / 22.5, digits = 2)
+
+Bryo<-how_much_to_use(2000, 20, mL_OF_2X_DRUG)
+DMSO<-uL_OF_2X_DRUG/100
 
 ```
 
@@ -183,7 +186,7 @@ Use: `r T20`uL
 
 R10: Bring to 1.5mL with R10:
 
-Use `r 1500 - (PMA + Iono +T20) `uL
+Use `r uL_OF_2X_DRUG - (PMA + Iono +T20) `uL
 
 **Bryostatin-1**
 
@@ -197,7 +200,7 @@ Use: `r T20`uL
 
 R10: Bring to 1.5mL with R10:
 
-Use `r 1500 - (T20 + Bryo)`uL
+Use `r uL_OF_2X_DRUG - (T20 + Bryo)`uL
 
 **DMSO**
 
@@ -211,4 +214,4 @@ Use: `r T20`uL
 
 R10: Bring to 1.5mL with R10:
 
-Use `1500 - (T20 + DMSO)`uL
+Use `r uL_OF_2X_DRUG - (T20 + DMSO)`uL
