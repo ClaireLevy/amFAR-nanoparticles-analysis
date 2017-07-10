@@ -166,7 +166,9 @@ Iono<- how_much_to_use(35,uM_to_ug_per_mL(709.018,2), mL_OF_2X_DRUG)
 T20<-round(uL_OF_2X_DRUG / 22.5, digits = 2)
 
 Bryo<-how_much_to_use(2000, 20, mL_OF_2X_DRUG)
-DMSO<-uL_OF_2X_DRUG/100
+
+# need to add DMSO to match the highest amount of DMSO in a drug condition
+DMSO<-max(PMA + Iono, Bryo)
 
 ```
 
