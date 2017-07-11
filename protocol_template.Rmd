@@ -152,17 +152,17 @@ number_drug_preparations <-3
 ```
 
 
-We need `r ((total_wells(3, 3,1,2,2)* drug_vol)/number_drug_preparations)`uL per drug preparation and the solution will be diluted 1:2 with the cells. Make
-1.5mL to have extra.
+We need `r ((total_wells(3, 3,1,1,2)* drug_vol)/number_drug_preparations)`uL per drug preparation and the solution will be diluted 1:2 with the cells. Make
+0.8mL to have extra.
 
 
 ```{r}
 
-mL_OF_2X_DRUG <- 1.5
+mL_OF_2X_DRUG <- 0.8
 uL_OF_2X_DRUG <- mL_OF_2X_DRUG * 1000
 
-PMA<-how_much_to_use(1, .1, mL_OF_2X_DRUG)
-Iono<- how_much_to_use(35,uM_to_ug_per_mL(709.018,2), mL_OF_2X_DRUG)
+PMA<-how_much_to_use(100, 0.1, mL_OF_2X_DRUG)
+Iono<- how_much_to_use(350,uM_to_ug_per_mL(709.018,2), mL_OF_2X_DRUG)
 T20<-round(uL_OF_2X_DRUG / 22.5, digits = 2)
 
 Bryo<-how_much_to_use(2000, 20, mL_OF_2X_DRUG)
@@ -174,11 +174,11 @@ DMSO<-max(PMA + Iono, Bryo)
 
 **PMA/Ionomycin**
 
-PMA: stock = 1ug/mL, want .1ug/mL, 2x of the final concentration.
+PMA: stock = 100ug/mL, want .1ug/mL, 2x of the final concentration.
 
 Use `r PMA`uL
 
-Ionomycin: stock = 35ug/mL, want 2uM,  2x of final concentration.
+Ionomycin: stock = 350ug/mL, want 2uM,  2x of final concentration.
 
 Use `r Iono`uL
 
@@ -186,7 +186,7 @@ T20: stock is at 45x and we need it at 2x so dilute 1:22.5
 
 Use: `r T20`uL
 
-R10: Bring to 1.5mL with R10:
+R10: Bring to `r mL_OF_2X_DRUG`mL with R10:
 
 Use `r uL_OF_2X_DRUG - (PMA + Iono +T20) `uL
 
@@ -200,7 +200,7 @@ T20: stock is at 45x and we need it at 2x so dilute 1:22.5
 
 Use: `r T20`uL
 
-R10: Bring to 1.5mL with R10:
+R10: Bring to `r mL_OF_2X_DRUG`mL with R10:
 
 Use `r uL_OF_2X_DRUG - (T20 + Bryo)`uL
 
@@ -214,6 +214,6 @@ T20: stock is at 45x and we need it at 2x so dilute 1:22.5
 
 Use: `r T20`uL
 
-R10: Bring to 1.5mL with R10:
+R10: Bring to `r mL_OF_2X_DRUG`mL with R10:
 
 Use `r uL_OF_2X_DRUG - (T20 + DMSO)`uL
