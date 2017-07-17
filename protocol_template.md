@@ -42,11 +42,13 @@ Enrich for CD4+CD69-CD25-HLADR- using StemCell kit (cat\# 17962, EasySep Human R
 10. Count
 11. Save aliquot for flow
 
-Decide which two cell amounts to test:
+~~Decide which two cell amounts to test:~~
 
-x:
+~~x:~~
 
-y:
+~~y:~~
+
+We only had enough cells to do one amount of cells per donor: we used 150k cells/100uL
 
 *Bullen et al did this:*
 
@@ -74,7 +76,11 @@ Thaw 5 vials of PBMC per donor in R10 and see how many CD4+ resting T cells we c
 
 Save some cells to check purity by flow.
 
-Make two tubes of cells of 2 concentrations, one that will give you X cells in 100uL and one that will give you Y cells in 100uL. In a 96 well round bottom plate, add 100uL of cells to the wells as in the plate layout. Will add 100uL of media + drug to bring to a total of 200uL per well.
+Make ~~two tubes of cells of 2 concentrations, one that will give you X cells in 100uL and one that will give you Y cells in 100uL.~~
+
+Used 150k cells per well, did not have enough for more.
+
+In a 96 well round bottom plate, add 100uL of cells to the wells as in the plate layout. Will add 100uL of media + drug to bring to a total of 200uL per well.
 
 **Prepare drug treatments in tubes**
 
