@@ -1,0 +1,201 @@
+---
+title: "Effect of JQ1 and ingenol on human T cells"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(plater)
+library(stringr)
+
+# read in flow data ------------------------------------------------------------
+# use readr::read_tsv because here is a weird NA symbol later in the table and 
+# this way it gets turned into an NA instead of making all the columns factors
+d <- read_tsv("../002 LRA/data/002 LRA gating-Table", na = "¥")
+
+# better column names
+colnames(d)[2:3] <- c("Well", "Plate")
+
+# sample column is useless
+d <- select(d, -Sample)
+
+# read in plate layout data ----------------------------------------------------
+dir <- "../002 LRA/plate_layout_"
+mapping_files <- paste0(dir, c("combo_and_cntls.csv", "single_FD.csv", 
+  "single_np.csv"))
+
+# plate_mappings_combo has some character concentrations where the others
+# have only numeric concentrations, which doesn't work with read_plates / 
+# bind_rows, so have to do separately and use rbind
+plate_mappings <- read_plates(mapping_files[2:3], plate_names = 
+    c("free_drug_single", "nanoparticle_single"), well_ids_column = "Well")
+
+plate_mappings_combo <- read_plate(mapping_files[1], 
+    well_ids_column = "Well") %>% 
+  mutate(Plate = "fd_combo_np_combo_cntls_np_only")
+
+plate_mappings <- rbind(plate_mappings, plate_mappings_combo)
+
+# data is ready ----------------------------------------------------------------
+d <- inner_join(d, plate_mappings)
+  
+to_plot <- d %>% 
+  # for combos just use concentration of one drug
+  mutate(nM = as.numeric(str_replace(Concentration_nM, " .*", ""))) %>% 
+  # omit nanoparticle alone
+  filter(Donor != "Nanoparticles alone") %>% 
+  # omit PMA
+  filter(Drug != "PMA") %>%
+  mutate(Donor = paste("Donor", Donor))
+
+dmso <- filter(to_plot, Drug == "DMSO") %>% 
+  group_by(Plate, Donor) %>% 
+  summarise_at(vars(LivePercent:CD8HLADR), funs(mean))
+
+tests <- to_plot %>% 
+  filter(Drug != "DMSO") %>% 
+  separate(Drug, into = c("Drug", "Formulation"), sep = "_") %>% 
+  mutate(Drug = factor(Drug, levels = c("JQ1", "Ingenol", "both"))) %>% 
+  mutate(Formulation = ifelse(Formulation == "FD", 
+    "free drug", "nanoparticle")) 
+```
+
+## Goal
+
+Determine the effect of JQ1 and Ingenol on human PBMC, using cellular gene expression as proxies for their ability to reactivate latent HIV.
+
+## Experiment
+
+24h exposure of human PBMC (two donors, 200K per well) to JQ1, Ingenol, or both, formulated as either free drugs or in nanoparticles. As a negative control, DMSO was used. After exposure, cells were stained for viability, cell lineage, and for markers that have been reported to respond to treatment with the drugs.
+
+Drugs were diluted in threefold steps, typically starting at ninefold above Shijie's experiments. 
+
+## Viability and cell number
+
+We first assessed the viability of all cells, which is shown below. 
+
+```{r}
+helper <- function(y) {
+  ggplot(tests, aes_string(x = "log10(nM)", y = y, color = "Formulation")) + 
+    geom_hline(data = dmso, aes_string(yintercept = y)) +
+    geom_point(size = 2) + facet_grid(Donor ~ Drug) + 
+    stat_summary(fun.y = "mean", geom = "line", aes(group = Formulation))
+}
+
+helper("LivePercent") + ylab("Viability") + ylim(c(0, 100))
+```
+
+Each symbol represents a single well, with colors representing drug formulations. The horizontal lines show the viability of the DMSO-treated wells. The concentration shown for "both" was the concentration of the JQ1 in the mixture. 
+
+Only JQ1 as a free drug had no effect on the viability of the cells. All of the nanoparticles, as well as ingenol as a free drug, all had strong negative effects on the viability of the cells at higher concentrations. 
+
+Similarly for cell number: 
+
+```{r}
+helper("log10(CD4Count)") + ylab("# Live CD4 cells (log10)") + ylim(c(1, 4))
+helper("log10(CD8Count)") + ylab("# Live CD8 cells (log10)") + ylim(c(1, 4))
+```
+
+In order to avoid over-interpretation of wells where there were few, mostly-dead cells, we removed measurements from wells where overall viability was below 50% or CD4 or CD8 cell counts were below 500. This was typically the highest one or two concentration steps. 
+
+```{r}
+tests <- tests %>% 
+  filter(LivePercent > 50, CD4Count > 500, CD8Count > 500)
+```
+
+## Gene proxies for JQ1
+
+### CD28
+
+JQ1 has been reported to down-regulate CD28 and CXCR4. 
+
+We first tested the expression of CD28 on CD4+ T cells: 
+
+```{r}
+helper("CD4CD28") + ylab("CD28% of CD4 T cells") + ylim(c(0, 100))
+```
+
+... and CD8+ T cells ...
+
+```{r}
+helper("CD8CD28") + ylab("CD28% of CD8 T cells") + ylim(c(0, 100))
+```
+
+Almost all CD4 T cells were CD28+ to begin with and the drugs didn't seem to affect its expression. CD28 expression was more variable across donors on CD8 T cells. At the highest concentrations tested, it was up-regulated by JQ1 free drug. This effect was not present in the nanoparticle formulation or the combination with ingenol due to the toxicity of the nanoparticle formulation / ingenol at the highest concentration. 
+
+### CXCR4
+
+We next tested the expression of CXCR4 on CD4+ T cells: 
+
+```{r}
+helper("CD4CXCR4") + ylab("CXCR4% of CD4 T cells") + ylim(c(0, 60))
+```
+
+... and CD8+ T cells ...
+
+```{r}
+helper("CD8CXCR4") + ylab("CXCR4% of CD8 T cells") + ylim(c(0, 60))
+```
+
+Both JQ1 and ingenol caused downregulation of CXCR4. The downregulation occurred over a much narrower concentration window as well as to a larger extent for ingenol than for JQ1. The nanoparticle and free drug formulations were approximately equivalent. 
+
+## Gene proxies for ingenol
+
+### CD69
+
+JQ1 has been reported to up-regulate CD69 and HLA-DR. 
+
+We first tested the expression of CD69 on CD4+ T cells: 
+
+```{r}
+helper("CD4CD69") + ylab("CD69% of CD4 T cells") + ylim(c(0, 100))
+```
+
+... and CD8+ T cells ...
+
+```{r}
+helper("CD8CD69") + ylab("CD69% of CD8 T cells") + ylim(c(0, 100))
+```
+
+CD69 was dramatically upregulated on both CD4 and CD8 T cells by ingenol over a narrow concentration window. JQ1 had little to no effect. Nanoparticle and free drug had similar effects. 
+
+### HLADR
+
+We next tested the expression of HLADR on CD4+ T cells: 
+
+```{r}
+helper("CD4HLADR") + ylab("HLADR% of CD4 T cells") + ylim(c(0, 50))
+```
+
+... and CD8+ T cells ...
+
+```{r}
+helper("CD8HLADR") + ylab("HLADR% of CD8 T cells") + ylim(c(0, 50))
+```
+
+Ingenol caused upregulation of HLA-DR on CD8 T cells. It also caused a small upregulation on CD4 T cells, but to a much smaller extent. JQ1 had basically no effect. 
+
+## Conclusions
+
+### Proxies for LRA
+
+CD28 is supposed to be downregulated by JQ1, but we found that it was unchanged (CD4 T cells) or upregulated (CD8 T cells). It was unaffected by ingenol.
+
+CXCR4 is supposed to be downregulated by JQ1. We found that it was weakly downregulated by JQ1 and strongly downregulated by ingenol on both CD4 and CD8 T cells. 
+
+CD69 is supposed to be upregulated by ingenol. We found that it was on both cell types. JQ1 had no effect.
+
+HLADR is supposed to be upregulated by ingenol. It was slightly upregulated on CD4 T cells and moderately upregulated on CD8 T cells. JQ1 had no effect.  
+
+**Best proxy for JQ1**: Hard to choose, none are very good. CXCR4 is "best" but not "good". CD40L, not tested here, has also been reported to be affected by JQ1.
+
+**Best proxy for Ingenol**: CXCR5 and CD69 are both good: large effects and similar magnitudes between CD4 and CD8 T cells (which will help discriminating with the antibody-targeted particles)
+
+### Little room for error
+
+All drugs, except for JQ1 as a free drug, had large effects on viability, with only a narrow window (3- to 9-fold) between large toxic effect and maximum effect on protein expression. The nanoparticles by themselves seem to have a toxic effect, because cell viability slumped at high levels of JQ1 nanoparticle but not JQ1 free drug. 
+
+### Nanoparticles vs. free drugs
+
+The effect of drugs was broadly similar across formulations. CXCR4 was downregulated at lower concentrations (3- to 9-fold) by nanoparticle than by free drug. CD69 and HLADR were almost completely overlapping between the formulations. 
