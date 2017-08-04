@@ -1,5 +1,5 @@
 ---
-title: "Effect of JQ1 and ingenol on human T cells"
+title: "Effect of JQ1 and Ingenol on human T cells"
 output: html_document
 ---
 
@@ -67,14 +67,22 @@ Determine the effect of JQ1 and Ingenol on human PBMC, using cellular gene expre
 
 ## Experiment
 
-24h exposure of human PBMC (two donors, 200K per well) to JQ1, Ingenol, or both, formulated as either free drugs or in nanoparticles. As a negative control, DMSO was used. After exposure, cells were stained for viability, cell lineage, and for markers that have been reported to respond to treatment with the drugs.
+24h exposure of human PBMC (two donors, 150K per well) to JQ1, Ingenol, or both, formulated as either free drugs or in nanoparticles. The JQ1 nanoparticles were chemically conjugated and the Ingenol nanoparticles were physically encapsulted.  As a negative control, DMSO was used. After exposure, cells were stained for viability, cell lineage, and for markers that have been reported to respond to treatment with the drugs.
 
-Drugs were diluted in threefold steps, typically starting at ninefold above Shijie's experiments. 
+Drugs were diluted in threefold steps, with the middle dilution being the same concentrations that Shijie when he tested the drugs in combination in Jlat cells. 
+
+In order to minmize drug loss for the fast-release JQ1 nanoparticles, we resuspended those after the Ingenol nanoparticles just before adding cells.
+
+We attempted to use PMA/Ionomycin as a positive control, iwth the concentrations used by Jiang et al (doi: 10.1097/QAD.0000000000000289) but the cells had very poor viability so the results are not shown here. These are higher concentrations than we usually use so we'll try lower next time. 
 
 ## Viability and cell number
 
 We first assessed the viability of all cells, which is shown below. 
 
+
+Each symbol represents a single well (each condition was run in two wells), with colors representing drug formulations. The horizontal lines show the viability of the DMSO-treated wells. The concentration shown for "both" was the concentration of the JQ1 in the mixture. 
+
+Only JQ1 as a free drug had no effect on the viability of the cells. All of the nanoparticles, as well as Ingenol as a free drug, all had strong negative effects on the viability of the cells at higher concentrations. 
 ```{r}
 helper <- function(y) {
   ggplot(tests, aes_string(x = "log10(nM)", y = y, color = "Formulation")) + 
@@ -86,9 +94,7 @@ helper <- function(y) {
 helper("LivePercent") + ylab("Viability") + ylim(c(0, 100))
 ```
 
-Each symbol represents a single well, with colors representing drug formulations. The horizontal lines show the viability of the DMSO-treated wells. The concentration shown for "both" was the concentration of the JQ1 in the mixture. 
 
-Only JQ1 as a free drug had no effect on the viability of the cells. All of the nanoparticles, as well as ingenol as a free drug, all had strong negative effects on the viability of the cells at higher concentrations. 
 
 Similarly for cell number: 
 
@@ -108,7 +114,7 @@ tests <- tests %>%
 
 ### CD28
 
-JQ1 has been reported to down-regulate CD28 and CXCR4. 
+JQ1 has been reported to down-regulate CD28 and CXCR4 (Banerjee et al). 
 
 We first tested the expression of CD28 on CD4+ T cells: 
 
@@ -122,11 +128,10 @@ helper("CD4CD28") + ylab("CD28% of CD4 T cells") + ylim(c(0, 100))
 helper("CD8CD28") + ylab("CD28% of CD8 T cells") + ylim(c(0, 100))
 ```
 
-Almost all CD4 T cells were CD28+ to begin with and the drugs didn't seem to affect its expression. CD28 expression was more variable across donors on CD8 T cells. At the highest concentrations tested, it was up-regulated by JQ1 free drug. This effect was not present in the nanoparticle formulation or the combination with ingenol due to the toxicity of the nanoparticle formulation / ingenol at the highest concentration. 
+Almost all CD4 T cells were CD28+ to begin with and the drugs didn't seem to affect its expression. CD28 expression was more variable across donors on CD8 T cells. At the highest concentrations tested, it was up-regulated by JQ1 free drug. This effect was not present in the nanoparticle formulation or the combination with Ingenol due to the toxicity of the nanoparticle formulation / Ingenol at the highest concentration. 
 
 ### CXCR4
 
-We next tested the expression of CXCR4 on CD4+ T cells: 
 
 ```{r}
 helper("CD4CXCR4") + ylab("CXCR4% of CD4 T cells") + ylim(c(0, 60))
@@ -138,13 +143,13 @@ helper("CD4CXCR4") + ylab("CXCR4% of CD4 T cells") + ylim(c(0, 60))
 helper("CD8CXCR4") + ylab("CXCR4% of CD8 T cells") + ylim(c(0, 60))
 ```
 
-Both JQ1 and ingenol caused downregulation of CXCR4. The downregulation occurred over a much narrower concentration window as well as to a larger extent for ingenol than for JQ1. The nanoparticle and free drug formulations were approximately equivalent. 
+Both JQ1 and Ingenol caused downregulation of CXCR4. The downregulation occurred over a much narrower concentration window as well as to a larger extent for Ingenol than for JQ1. The nanoparticle and free drug formulations were approximately equivalent. 
 
-## Gene proxies for ingenol
+## Gene proxies for Ingenol
 
 ### CD69
 
-JQ1 has been reported to up-regulate CD69 and HLA-DR. 
+Ingenol alone and in combination with JQ1 has been reported to up-regulate CD69 and HLA-DR (Jiang et al and Darcis et al) . 
 
 We first tested the expression of CD69 on CD4+ T cells: 
 
@@ -158,7 +163,7 @@ helper("CD4CD69") + ylab("CD69% of CD4 T cells") + ylim(c(0, 100))
 helper("CD8CD69") + ylab("CD69% of CD8 T cells") + ylim(c(0, 100))
 ```
 
-CD69 was dramatically upregulated on both CD4 and CD8 T cells by ingenol over a narrow concentration window. JQ1 had little to no effect. Nanoparticle and free drug had similar effects. 
+CD69 was dramatically upregulated on both CD4 and CD8 T cells by Ingenol over a narrow concentration window. JQ1 had little to no effect. Nanoparticle and free drug had similar effects. 
 
 ### HLADR
 
@@ -174,19 +179,19 @@ helper("CD4HLADR") + ylab("HLADR% of CD4 T cells") + ylim(c(0, 50))
 helper("CD8HLADR") + ylab("HLADR% of CD8 T cells") + ylim(c(0, 50))
 ```
 
-Ingenol caused upregulation of HLA-DR on CD8 T cells. It also caused a small upregulation on CD4 T cells, but to a much smaller extent. JQ1 had basically no effect. 
+Ingenol caused upregulation of HLA-DR on CD8 T cells as was reported in Jiang et al. It also caused a small upregulation on CD4 T cells, but to a much smaller extent. JQ1 had basically no effect. 
 
 ## Conclusions
 
 ### Proxies for LRA
 
-CD28 is supposed to be downregulated by JQ1, but we found that it was unchanged (CD4 T cells) or upregulated (CD8 T cells). It was unaffected by ingenol.
+CD28 is supposed to be downregulated by JQ1 (Bannerjee et al, in microarray and qPCR validated in Jlat 10.6 cells), but we found that it was unchanged (CD4 T cells) or upregulated (CD8 T cells). It was unaffected by Ingenol.
 
-CXCR4 is supposed to be downregulated by JQ1. We found that it was weakly downregulated by JQ1 and strongly downregulated by ingenol on both CD4 and CD8 T cells. 
+CXCR4 is supposed to be downregulated by JQ1 (Bannerjee et al, in microarray). We found that it was weakly downregulated by JQ1 and strongly downregulated by Ingenol on both CD4 and CD8 T cells. 
 
-CD69 is supposed to be upregulated by ingenol. We found that it was on both cell types. JQ1 had no effect.
+CD69 is supposed to be upregulated by Ingenol. We found that it was on both cell types. JQ1 had no effect.
 
-HLADR is supposed to be upregulated by ingenol. It was slightly upregulated on CD4 T cells and moderately upregulated on CD8 T cells. JQ1 had no effect.  
+HLADR is supposed to be upregulated by Ingenol. It was slightly upregulated on CD4 T cells and moderately upregulated on CD8 T cells. JQ1 had no effect.  
 
 **Best proxy for JQ1**: Hard to choose, none are very good. CXCR4 is "best" but not "good". CD40L, not tested here, has also been reported to be affected by JQ1.
 
