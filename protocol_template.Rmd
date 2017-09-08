@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
 
 
-experiment<-"LRA_002"
+experiment<-"LRA_003"
 
 #MPA molecular weight = 320.341 g/mol
 #PMA molecular weight = 616.83 g/mol
@@ -46,67 +46,58 @@ how_much_to_use<- function(c1, c2, v2){
 ## `r experiment` Protocol
 
 **Goal**
-Measure (by flow) genes reported to be regulated by JQ1 and Ingenol.
-References:
-Darcis et al, doi: 10.1371/journal.ppat.1005063
-Banerjee et al: doi: 10.1189/jlb.0312165
 
+Compare targeting of various formulations of ingenol nanoparticles (conjugated, not encapsulated) by measuring CD69-expression on CD8 and CD4 T cells after 24h.
 
 **Treatments: To be done in duplicate**
-1. PMA/Ionomycin (+ cntl) 
 
-2. DMSO (-cntl)
+1. Free ingenol
 
-3. JQ1 nanoparticles 
+2. Ingenol nanoparticles
 
-4. Ingenol-3 nanoparticles 
+3. Ingenol nanoparticles with BP4 (CD4-targeting peptide)
 
-5. Both JQ1 and Ingenol-3 nanoparticles
+4. Ingenol nanoparticles with CD4 antibody
 
-6. JQ1 free drug
+5. Ingenol nanoparticles with isotype antibody
 
-7. Ingenol-3 free drug
+6. Ingenol nanoparticles with fragment CD4 antibody
 
-8. Both JQ1 and Ingenol-3 free drug
+7. Ingenol nanoparticles with fragment isotype antibody
 
-
-
-**Genes**
-
-CD28: down-regulated by JQ1(Bannerjee et al)
-
-CXCR4: down-regulated by JQ1(Bannerjee et al)
-
-CD40LG: down-regulated by JQ1(Bannerjee et al)
-
-CD69: up-regulated by Ingenol-3 (Darcis et al)
-
-HLA-DR: up-regulated by Igenol-3 (slight)(Darcis et al)
-
-
+8. DMSO (ingenol vehicle)
   
 **Number of wells**
 
-For the non-control conditions, we need 2 donors x 6 treatments x 6 concentrations x 2 replicates = 144 wells, 24 per condition. 
-
-For the controls, we need 2 donors x 2 treatments x 2 replicate = 8 wells
-
-144 + 8 = 152 wells total
-
 ```{r}
-NUMBER_OF_WELLS <- 152
+DONORS <- 2
+
+TREATMENTS <- 7
+
+CONCENTRATIONS <- 6
+
+REPLICATES <- 2
+
+EXPERIMENTAL_WELLS <- DONORS * TREATMENTS * CONCENTRATIONS * REPLICATES
+
+CONTROL_WELLS <- DONORS * REPLICATES
+
+NUMBER_OF_WELLS <- EXPERIMENTAL_WELLS + CONTROL_WELLS
 ```
 
+For the non-control conditions, we need `r DONORS` donors x `r TREATMENTS` treatments x `r CONCENTRATIONS` concentrations x `r REPLICATES` replicates = `r EXPERIMENTAL_WELLS` wells, `r DONORS * CONCENTRATIONS * REPLICATES`  per condition. 
+
+For the control, we need `r DONORS` donors x `r REPLICATES` replicate = `r CONTROL_WELLS` wells
+
+`r EXPERIMENTAL_WELLS` + `r CONTROL_WELLS` = `r NUMBER_OF_WELLS` wells total
 
 **Donors**
-2 x HIV- , total PBMC 
-150k cells per well x `r NUMBER_OF_WELLS` wells = 22.8E6 needed.
+`r DONORS` x HIV- , total PBMC 
+150k cells per well x `r NUMBER_OF_WELLS` wells = `r 1.5E5 * NUMBER_OF_WELLS / DONORS` needed.
 
 **Timing**
 
 Treat with LRAs for 24hr, then stain cells for flow.
-
-
 
 **Prepare plate for doing drug dilutions**
 
@@ -115,37 +106,24 @@ In each well, add 100uL R10. Later, 100uL of cells will be added to these wells,
 
 **Prepare drug treatments in tubes**
 
-For each serial dilution (3-fold) need to start the dilution with 50uL of the highest concentration (50uL into 150uL = 3-fold dilution). 
+For each serial dilution (3-fold) need to start the dilution with 50uL of the highest concentration (50uL plus 100uL = 3-fold dilution). 
 
 There will be 2 reps of each dilution x 2 donors so need to make at least 50uL x 4 = 150uL of each starting drug solution for the single drug conditions. 
 
 Make 300uL to minimize tears.
 
-
-For the controls, need 4 reps per control, 100uL each so make 450uL of the starting concentration for each (PMA/Iono, and DMSO).
+For the controls, need 2 reps per control, 100uL each so make 450uL of the starting concentration for each (DMSO).
 
 **Starting Drug Concentrations**
 Drugs need to be added at 6X the final desired concentration, so that when we add 50uL to the 100uL already in the well, they will be diluted 1:3 to 2X, in preparation for being further diluted 1:2 to 1X when cells are added
 
 **Treatment Doses**
 
-PMA/Ionomycin: 200ng/mL PMA and 2uM Ionomycin
-
-JQ1: We'll start with 9-fold over what SC used for the combination dose
-
-  Free drug: Start with 9-fold over 458ng/mL = 4.12ug/mL
-  
-  LCNP: Start with 9-fold over 680ng/mL = 6.12ug/mL
-  
-  
-  
-Ingenol-3: We'll start with 9-fold over what SC used for the combination dose
+We'll start with 9-fold over what SC used for the combination dose
 
   Free drug: Start with 9-fold over 1.5ng/mL = 13.5ng/mL = 0.0135ug/mL
   
   LCNP: Start with 9-fold over 24ng/mL = 216ng/mL = 0.216ug/mL
-  
-  
   
 ```{r}
 
@@ -156,37 +134,20 @@ mL_OF_2X_CNTL<-.45
 
 uL_OF_2X_CNTL<-mL_OF_2X_CNTL * 1000
 
-  
-#PMA: stock = 100ug/mL, want 400ng/mL, 2x of the final concentration.
-PMA<-how_much_to_use(100, 0.4, mL_OF_2X_CNTL)
-
-#Ionomycin: stock = 350ug/mL, want 4uM,  2x of final concentration.
-Iono<- how_much_to_use(350,uM_to_ug_per_mL(709.018,4), mL_OF_2X_CNTL)
-
 ```
-**PMA/Ionomycin**
-
-PMA: stock = 100ug/mL, want 400ng/mL, 2x of the final concentration.
-
-Use `r PMA`uL
-
-Ionomycin: stock = 350ug/mL, want 4uM,  2x of final concentration.
-
-Use `r Iono`uL
-
-R10: Bring to `r mL_OF_2X_CNTL`mL with R10 by adding `r uL_OF_2X_CNTL - (PMA + Iono) `uL
-
 
 **DMSO**
 
 Use the highest concentration of any of the free drugs/3 (to make it 2X) and bring to `r mL_OF_2X_CNTL`mL
 
 
-```{r ing3 concentrtaions}
+```{r ing3 concentrtaions, message=TRUE}
 #Ing starting concentration for free drug single = 0.0135ug/mL
 #Need 6X, 0.081ug/mL
 
 Ing_FD_single<-how_much_to_use(500,0.081, mL_OF_6X_DRUG)
+
+message("what is the concentration of Ingenol nanoparticles??? this isn't right!!!!!")
 
 #Ing starting concentration for LCNP single = 0.216ug/mL
 #Need 6X, 1.296ug/mL
@@ -200,68 +161,22 @@ Ing_NP_single<-how_much_to_use(Ing_NP_ug/Ing_NP_mL,1.296, mL_OF_6X_DRUG)
 
 ```
 
-### Prepare the JQ1 nanoparticles after everything else is ready because they are fast release and we don't want them to sit around while we're doing other stuff.
-
 **6X Ing free drug single**
 
 SC gave us Ing free drug at 500ug/mL
 
 We only need a little amount, so make a 1:100 dilution of Ing_FD and then:
 
-Use `r Ing_FD_single * 100` uL, bring to `r mL_OF_6X_DRUG`mL with R10 by adding `r uL_OF_6X_DRUG - (Ing_FD_single *100)`uL
+Use `r Ing_FD_single * 100` uL, bring to `r mL_OF_6X_DRUG` mL with R10 by adding `r mL_OF_6X_DRUG * 1000 - (Ing_FD_single * 100)` uL
 
 Make enough 1:100 to use again for the combo treatment.
 
 
-**6X Ing NP (chemically conjugated) single**
+**6X Ing NP (chemically conjugated)**
 
-Resuspend the nanoparticles in R10 to `r Ing_NP_ug/Ing_NP_mL`ug/mL. Vortex and sonicate until there are no clumps.
+Resuspend each formulation of the nanoparticles in R10 to `r Ing_NP_ug/Ing_NP_mL`ug/mL. Vortex and sonicate until there are no clumps. The below procedure will need to be repeated for each formulation.
 
-Use `r Ing_NP_single` uL, bring to `r mL_OF_6X_DRUG`mL with R10 by adding `r uL_OF_6X_DRUG - (Ing_NP_single * 100)`uL
-
-
-
-
-```{r JQ1 concentrations}
-
-#JQ starting concentration for free drug single = 4.12ug/mL
-#Need 6X, 24.72ug/mL
-
-JQ1_FD_single<-how_much_to_use(1250,24.72, mL_OF_6X_DRUG)
-
-#JQ starting concentration for LCNP single = 6.12ug/mL
-#Need 6X, 36.72ug/mL
-
-JQ1_NP_ug<-357
-JQ1_NP_mL<-5
-
-
-JQ1_NP_single<-how_much_to_use(JQ1_NP_ug/JQ1_NP_mL,36.72, mL_OF_6X_DRUG)
-
-```
-**6X JQ1 free drug single**
-
-Use `r JQ1_FD_single`uL, bring to `r mL_OF_6X_DRUG`mL with R10 by adding `r uL_OF_6X_DRUG - JQ1_FD_single`uL
-
-
-**6X JQ1 NP single**
-Resuspend the nanoparticles in R10 to `r JQ1_NP_ug/JQ1_NP_mL`ug/mL. Vortex and sonicate until there are no clumps.
-
-Use `r JQ1_NP_single`uL bring to `r mL_OF_6X_DRUG`mL with R10 by adding `r uL_OF_6X_DRUG - JQ1_NP_single`uL
-
-
-
-**6X combintion of free drugs**
-
-Remember to use the 1:100 diluted Ing_FD
-
-Use `r Ing_FD_single *100` uL 1:100 Ing_FD and `r JQ1_FD_single`uL JQ1_FD,  bring to `r mL_OF_6X_DRUG`mL with R10 by adding `r uL_OF_6X_DRUG - ((Ing_FD_single * 100) +JQ1_FD_single)`uL
-
-
-**6X combintion of NP**
-
-Use `r Ing_NP_single` uL Ing_NP and `r JQ1_NP_single`uL JQ1_NP,  bring to `r mL_OF_6X_DRUG`mL with R10 by adding `r uL_OF_6X_DRUG - (Ing_NP_single +JQ1_NP_single)`uL
-
+Use `r Ing_NP_single` uL, bring to `r mL_OF_6X_DRUG`mL with R10 by adding `r mL_OF_6X_DRUG * 1000 - Ing_NP_single`uL
 
 ###Add drugs and controls to plate
 Add 50uL of 6X drug cocktails to starting well and do serial dilutions down to row G.
@@ -269,7 +184,7 @@ Add 50uL of 6X drug cocktails to starting well and do serial dilutions down to r
 For controls, add 100uL of 2X.
 
 ###Add cells to plate
-Donor A is VEU5031 and Donor B is VEU5168
+Donor A is ??? and Donor B is ???
 
 Dilute cells to 1.5E5/100uL = 1.5E6/mL. Add 100uL to each well.
 
@@ -293,26 +208,15 @@ Live/Dead:
 1. Incubate in the dark at RT for 20 min.
 1. Add 150 µL FACS Wash to each well. 
 
-CXCR4 staining: 
-
-1. Prepare staining reagent: `r NUMBER_OF_WELLS` µL CXCR4 BUV396 + `r 49*NUMBER_OF_WELLS` µL FACS Wash.
-1. Spin cells at 750g for 3 minutes.
-1. Resuspend cells in 45 µL staining reagent (this accounts for overage). 
-1. Incubate in the dark at **37C** in the incubator for 20 min.
-1. Add 150 µL FACS Wash to each well. 
-
-Rest of antibody staining: 
+Antibody staining: 
 
 1. Prepare staining cocktail: 
 
 * `r NUMBER_OF_WELLS * 5` µL CD8 PerCP-Cy5.5
 * `r NUMBER_OF_WELLS * 5` µL CD3 v450
-* `r NUMBER_OF_WELLS * 2.5` µL CD28 PE		
 * `r NUMBER_OF_WELLS * 2.5` µL CD69 APC		
-* `r NUMBER_OF_WELLS * 2.5` µL HLA-DR FITC	
 * `r NUMBER_OF_WELLS * 0.5` µL CD4 ECD
-* `r NUMBER_OF_WELLS * 0.675` µL CD40L APC-e780
-* `r NUMBER_OF_WELLS * 31` µL FACS Wash.
+* `r NUMBER_OF_WELLS * 37` µL FACS Wash.
 
 1. Spin cells at 750g for 3 minutes.
 1. Resuspend cells in 45 µL staining cocktail (this accounts for overage). 
