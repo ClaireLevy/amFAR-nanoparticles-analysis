@@ -42,7 +42,7 @@ d <- inner_join(d, plate_mappings)
   
 to_plot <- d %>% 
   # for combos just use concentration of one drug
-  mutate(nM = as.numeric(str_replace(Concentration_nM, " .*", ""))) %>% 
+  mutate(NgPerMl = as.numeric(str_replace(Concentration_ng_per_mL, " .*", ""))) %>% 
   # omit nanoparticle alone
   filter(Donor != "Nanoparticles alone") %>% 
   # omit PMA
@@ -65,13 +65,17 @@ tests <- to_plot %>%
 
 Determine the effect of JQ1 and Ingenol on human PBMC, using cellular gene expression as proxies for their ability to reactivate latent HIV.
 
+## Analysis version
+
+This is an updated analysis performed on September 12, 2017, with corrected drug concentrations for the nanoparticle formulations.
+
 ## Experiment
 
 24h exposure of human PBMC (two donors, 150K per well) to JQ1, Ingenol, or both, formulated as either free drugs or in nanoparticles. The JQ1 nanoparticles were chemically conjugated and the Ingenol nanoparticles were physically encapsulted.  As a negative control, DMSO was used at a concentration matching that of the highest drug concentration. After exposure, cells were stained for viability, cell lineage, and for markers that have been reported to respond to treatment with the drugs.
 
 Drugs were diluted in threefold steps, with the middle dilution being the same concentrations that Shijie when he tested the drugs in combination in Jlat cells. 
 
-In order to minmize drug loss for the fast-release JQ1 nanoparticles, we resuspended those after the Ingenol nanoparticles just before adding cells.
+In order to minimize drug loss for the fast-release JQ1 nanoparticles, we resuspended those after the Ingenol nanoparticles just before adding cells.
 
 We attempted to use PMA/Ionomycin as a positive control, with the concentrations used by Jiang et al (doi: [10.1097/QAD.0000000000000289](https://www.ncbi.nlm.nih.gov/pubmed/?term=24804860)) but the cells had very poor viability so the results are not shown here. These are higher concentrations than we usually use so we'll try our normal dose next time. 
 
@@ -84,10 +88,11 @@ Each symbol represents a single well (each condition was run in two wells), with
 Only JQ1 as a free drug had no effect on the viability of the cells. All of the nanoparticles, as well as Ingenol as a free drug, all had strong negative effects on the viability of the cells at higher concentrations. 
 ```{r}
 helper <- function(y) {
-  ggplot(tests, aes_string(x = "log10(nM)", y = y, color = "Formulation")) + 
+  ggplot(tests, aes_string(x = "log10(NgPerMl)", y = y, color = "Formulation")) + 
     geom_hline(data = dmso, aes_string(yintercept = y)) +
     geom_point(size = 2) + facet_grid(Donor ~ Drug) + 
-    stat_summary(fun.y = "mean", geom = "line", aes(group = Formulation))
+    stat_summary(fun.y = "mean", geom = "line", aes(group = Formulation)) + 
+    xlab("ng/mL (log10)")
 }
 
 helper("LivePercent") + ylab("Viability") + ylim(c(0, 100))
@@ -139,13 +144,13 @@ helper("CD4CXCR4") + ylab("CXCR4% of CD4 T cells") + ylim(c(0, 60))
 helper("CD8CXCR4") + ylab("CXCR4% of CD8 T cells") + ylim(c(0, 60))
 ```
 
-Both JQ1 and Ingenol caused downregulation of CXCR4. The downregulation occurred over a much narrower concentration window as well as to a larger extent for Ingenol than for JQ1. The nanoparticle and free drug formulations were approximately equivalent. 
+Both JQ1 and Ingenol caused downregulation of CXCR4. The downregulation occurred over a much narrower concentration window as well as to a larger extent for Ingenol than for JQ1. The nanoparticle and free drug formulations were approximately equivalent for JQ1, while ingenol nanoparticles were 10-20X less potent than the free drug. 
 
 ## Gene proxies for Ingenol
 
 ### CD69
 
-Ingenol alone and in combination with JQ1 has been reported to up-regulate CD69 and HLA-DR (Jiang et al and Darcis et al) . 
+Ingenol alone and in combination with JQ1 has been reported to up-regulate CD69 and HLA-DR (Jiang et al and Darcis et al). 
 
 We first tested the expression of CD69 on CD4+ T cells: 
 
@@ -159,7 +164,7 @@ helper("CD4CD69") + ylab("CD69% of CD4 T cells") + ylim(c(0, 100))
 helper("CD8CD69") + ylab("CD69% of CD8 T cells") + ylim(c(0, 100))
 ```
 
-CD69 was dramatically upregulated on both CD4 and CD8 T cells by Ingenol over a narrow concentration window. JQ1 had little to no effect. Nanoparticle and free drug had similar effects. 
+CD69 was dramatically upregulated on both CD4 and CD8 T cells by Ingenol over a narrow concentration window. JQ1 had little to no effect. Nanoparticle and free drug had similar effects, but again ingenol nanoparticles were 10-20X less potent. 
 
 ### HLADR
 
@@ -214,4 +219,4 @@ All drugs, except for JQ1 as a free drug, had large effects on viability, with o
 
 ### Nanoparticles vs. free drugs
 
-The effect of drugs was broadly similar across formulations. CXCR4 was downregulated at lower concentrations (3- to 9-fold) by nanoparticle than by free drug. CD69 and HLADR were almost completely overlapping between the formulations. 
+The effect of drugs was broadly similar across formulations. The ingenol nanoparticles required about 10-20X higher concentration to have the same effect as the free drug, while JQ1 nanoparticles and free drug had the same effect at about the same concentration. 
