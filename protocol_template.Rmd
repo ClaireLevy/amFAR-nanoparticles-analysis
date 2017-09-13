@@ -147,17 +147,16 @@ Use the highest concentration of any of the free drugs/3 (to make it 2X) and bri
 
 Ing_FD_single<-how_much_to_use(500,0.081, mL_OF_6X_DRUG)
 
-message("what is the concentration of Ingenol nanoparticles??? this isn't right!!!!!")
-
 #Ing starting concentration for LCNP single = 0.216ug/mL
 #Need 6X, 1.296ug/mL
 
+Ing_6x_NP <- 1.296
 
-Ing_NP_ug<-320
-Ing_NP_mL<-5
+Ing_NP_ug<-25.6
+Ing_NP_mL<-1
 
 
-Ing_NP_single<-how_much_to_use(Ing_NP_ug/Ing_NP_mL,1.296, mL_OF_6X_DRUG)
+Ing_NP_single<-how_much_to_use(Ing_NP_ug/Ing_NP_mL, Ing_6x_NP, mL_OF_6X_DRUG)
 
 ```
 
@@ -174,9 +173,9 @@ Make enough 1:100 to use again for the combo treatment.
 
 **6X Ing NP (chemically conjugated)**
 
-Resuspend each formulation of the nanoparticles in R10 to `r Ing_NP_ug/Ing_NP_mL`ug/mL. Vortex and sonicate until there are no clumps. The below procedure will need to be repeated for each formulation.
+Shijie brought us nanoparticles corresponding to 25.6 ug of ingenol for each formulation. He said that we should resuspend them in 1 mL R10 to `r Ing_NP_ug/Ing_NP_mL`ug/mL. Vortex and sonicate until there are no clumps. The below procedure will need to be repeated for each formulation.
 
-Use `r Ing_NP_single` uL, bring to `r mL_OF_6X_DRUG`mL with R10 by adding `r mL_OF_6X_DRUG * 1000 - Ing_NP_single`uL
+Use `r Ing_NP_single` uL, bring to `r mL_OF_6X_DRUG`mL with R10 by adding `r mL_OF_6X_DRUG * 1000 - Ing_NP_single`uL. This gives `r Ing_6x_NP` ug/mL, which is six times (allows for dilution) our desired concentration of 0.216ug/mL for the highest concentration. 
 
 ###Add drugs and controls to plate
 Add 50uL of 6X drug cocktails to starting well and do serial dilutions down to row G.
@@ -184,7 +183,7 @@ Add 50uL of 6X drug cocktails to starting well and do serial dilutions down to r
 For controls, add 100uL of 2X.
 
 ###Add cells to plate
-Donor A is ??? and Donor B is ???
+Donor A is VEU5031 and Donor B is VEU5099.
 
 Dilute cells to 1.5E5/100uL = 1.5E6/mL. Add 100uL to each well.
 
