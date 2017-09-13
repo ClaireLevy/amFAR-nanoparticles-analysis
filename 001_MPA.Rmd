@@ -1,0 +1,440 @@
+---
+title: "Proliferation experiments analysis"
+author: "Claire Levy and Sean Hughes"
+output: html_document
+---
+
+
+
+## Proliferation assay 001: MPA
+
+### Goal
+Assess anti-proliferative effects of 3 different MPA treatments (free drug and two nanoparticle formulations) in human PBMC from two HIV - donors, using two activation methods (beads and cytokines). 
+
+### Treatments
+
+1. Free MPA
+2. MPA loaded LCNP (physically encapsulated)
+3. MPA conjugated LCNP (conjugated with PLGA)
+
+### Stimulations
+
+All cells were treated with IL2 and one of the following stimulation cocktails:
+
+Beads: CD3/CD28 beads (5 days, “antigenic”)
+
+Cytokines:IL15,IL7 (7 days, “homeostatic”)
+
+
+
+
+### Doses
+
+We did titrations of MPA in 2-fold steps:
+ 
+Free MPA: 0.4-0.00156 $\mu$g/mL and 0
+	
+MPA loaded LCNP: 0.3-0.00156 $\mu$g/mL and 0
+	
+MPA conjugated LCNP, use 50x more than others, 20-0.078 $\mu$g/mL and 0
+
+### Replicates
+
+All treatments were done with two replicates per donor.
+
+### Caveats
+
+It was somewhat difficult to completely resuspend the nanoparticle formulations in the media. We vortexed and sonicated but for both formulations were left with some aggregates that we couldn't get rid of. 
+
+We ran out of the Ab that we were using for CD4 staining so we had to use less that the amount called for in the protocol. The results looked ok though and we were able to see clear CD4+ populations.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(plater)
+library(stringr)
+
+```
+
+
+```{r read in plate layouts metadata}
+
+layouts001_dir<-"../001_MPA/plate_layouts"
+
+layouts001_files <-paste0(layouts001_dir,"/", list.files(layouts001_dir))
+
+
+#giving a plate name with same values as those in the PLATE NAME column in the flowjo files.
+layouts001<- read_plates(layouts001_files, plate_names = c("IL2_CD3_CD28_1801", "IL2_CD3_CD28_5140","IL2_IL7_IL15_1801", "IL2_IL7_IL15_5140"))
+
+
+names(layouts001)[1]<-"PLATE NAME"
+```
+
+
+```{r read in flowjo data}
+
+#read in data tables from flowjo: There is one for the bead stimulated samples and one for the cytokine stimulated ones for each donor. 
+
+data001_dir<-"../001_MPA/data/flowjo_tables"
+
+data001_files <-paste0(data001_dir,"/", list.files(data001_dir))
+
+#read in as a list of dfs
+data001<-lapply(data001_files, FUN = read.csv)
+
+#bind into one df
+data001<-bind_rows(data001)
+
+
+#clean up the col names so it's not terrible, the % of parent data are first, then the count data
+
+colnames(data001)<-c("Wells",
+                     "PLATE NAME",
+                     "live",
+                     "CD14_neg",
+                     "CD3",
+                     "CD4",
+                     "CD4_proliferated",
+                     "CD8",
+                     "CD8_proliferated",
+                     "live_count",
+                     "CD14_neg_count",
+                     "CD3_count",
+                     "CD4_count",
+                     "CD4_proliferated_count",
+                     "CD8_count",
+                     "CD8_proliferated_count",
+                     "X.1")
+
+
+
+
+#The well column is messed up, I only want the first 3 characters and I don't want the empty last column ("X.1") AND I don't want the rows with entries for "Mean" and "SD" in the Wells column
+     
+data001<-data001 %>%
+  mutate(Wells = substr(Wells, 1,3))%>%
+  dplyr::select(-X.1)%>%
+  filter(Wells != "SD" & Wells != "Mean" & Wells != "Mea")
+
+
+
+```
+
+```{r merge metadata and flowjo data}
+
+
+
+
+merge_data001<- merge(layouts001, data001, by = c("Wells", "PLATE NAME"))
+
+#make it more clear that the conjugated MPA is 50X more concentrated than the other ones:
+
+merge_data001<-merge_data001 %>%
+mutate(Formulation = str_replace(Formulation,"MPA conj. NP", "50X MPA conj. NP"))%>%
+  mutate(Stimulation = str_replace(Stimulation, "IL2_IL7_IL15", "Cytokines"))%>%
+  mutate(Stimulation = str_replace(Stimulation,"IL2_CD3_CD28", "Beads"))
+
+
+
+merge_data001$Formulation<-factor(merge_data001$Formulation, levels = c("Free drug", "MPA loaded NP", "50X MPA conj. NP"))
+
+
+#make a column for if there were <100 CD4 or CD8 cells and <1000 live cells
+
+
+merge_data001<- merge_data001 %>%
+  mutate("CD4_less_than_200" = ifelse(CD4_count <200, "yes", "no"))%>%
+  mutate("CD8_less_than_200" = ifelse(CD8_count <200, "yes", "no"))%>%
+  mutate("live_less_than_2k" = ifelse(live_count <2000, "yes", "no"))
+
+
+
+
+```
+## Results
+
+### Viability
+
+In general, viability decreases as the MPA concentration increases. The decrease is somewhat more dramatic for the cytokine stimulated cells. 
+
+```{r plot viability}
+
+
+#what's the viability where the dose is zero?
+
+live_at_zero<- merge_data001  %>%
+  filter(ug_per_mL_MPA == 0)%>%
+  group_by(`PLATE NAME`, Formulation) %>%
+  summarise(avg_baseline_viability = mean(live))
+
+merge_data001%>%
+ filter(live_less_than_2k == "no")%>%
+ggplot(aes(x = ug_per_mL_MPA, y = live))+
+  #geom_point(aes(color = Formulation), alpha = 0.3, size = 2)+
+  stat_summary(fun.y = mean, geom = "line", aes(group = interaction(Donor,Formulation), linetype = Donor), size = 1)+
+  ggtitle("Percent viability: all cells")+
+  scale_x_log10()+
+  scale_y_continuous(limits = c(0,100)) +
+  facet_grid(Stimulation~Formulation)+
+  labs(y = "Percent Live", x = "\U03BCg/mL MPA(log10)")+
+  theme(axis.title.y = element_text(size = 15),
+        axis.title.x = element_text(size = 15),
+        axis.text.x = element_text(size =15), 
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 15), 
+    legend.title = element_text(size = 15),
+    strip.text = element_text(size = 10))
+
+```
+
+### Proliferation: CD4+ and CD8+ T cells
+
+Proliferation started out higher for the CD3/CD28 bead stimulated cells and there was also more variation between the two donors for this condition.
+
+Proliferation dropped off at the same point in the titration for all conditions except for 50X MPA conj. NP with cytokine stim, where the pattern is different.
+
+Data are not shown where there were <200 CD4+ cells
+
+```{r plot percent proliferated CD4}
+
+
+merge_data001%>%
+#filter(CD4_less_than_200 == "no")%>%
+ggplot(aes(x = ug_per_mL_MPA, y = CD4_proliferated))+
+  #geom_point(aes(color = Formulation), alpha = 0.3, size = 2)+
+  stat_summary(fun.y = mean, geom = "line", aes(group = interaction(Donor,Formulation), color = Formulation, linetype = Donor), size =1)+
+  ggtitle("Percent proliferation of CD4+ cells")+
+  scale_x_log10()+
+  facet_wrap(~Stimulation)+
+  labs(y = "Percent Proliferated", x = "\U03BCg/mL MPA(log10)")+
+  theme(axis.title.y = element_text(size = 15),
+        axis.title.x = element_text(size = 15),
+        axis.text.x = element_text(size =15), 
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 15), 
+    legend.title = element_text(size = 15),
+    strip.text = element_text(size = 12))
+
+
+
+
+```
+
+
+
+
+```{r plot percent proliferated CD8}
+merge_data001%>%
+filter(CD8_less_than_200 == "no")%>%
+ggplot(aes(x = ug_per_mL_MPA, y = CD8_proliferated))+
+  #geom_point(aes(color = Formulation), alpha = 0.3, size = 2)+
+  stat_summary(fun.y = mean, geom = "line", aes(group = interaction(Donor,Formulation), color = Formulation, linetype = Donor), size =1)+
+  ggtitle("Percent proliferation of CD8+ cells")+
+  scale_x_log10()+
+  facet_wrap(~Stimulation)+
+  labs(y = "Percent Proliferated", x = "\U03BCg/mL MPA(log10)")+
+  theme(axis.title.y = element_text(size = 15),
+        axis.title.x = element_text(size = 15),
+        axis.text.x = element_text(size =15), 
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 15), 
+    legend.title = element_text(size = 15),
+    strip.text = element_text(size = 12))
+```
+
+
+
+```{r IC50 calculations}
+library(drc)
+
+#I want to model the dose response curves. I'll fit the model separately for each donor and each stimulation and formulation and the get the ED50 (same as IC50)but for inhibition.
+
+#make a function so I can make the model for each stimulation and formulation and donor
+
+#first make a column that concatenates the meta data so I can loop over it.
+ merge_data001<-merge_data001 %>%
+    mutate(Donor_stim_form = paste(Donor, Stimulation, Formulation, sep = "_"))
+
+
+
+get_ED50_CD4<-function(condition_data){
+  merge_data001 %>%
+  filter(CD4_less_than_200 == "no",
+         Donor_stim_form == condition_data) %>%
+           drm(CD4_proliferated ~ ug_per_mL_MPA, 
+    fct = LL.4(names = c("Slope", "LL", "UL", "ED50")),
+    data = . )%>%
+      ED(., 50, display = FALSE)%>%
+    .[1]
+}
+
+#apply my function over vector of unique Donor_stim_form combinations and name the resulting list with the values in the vector it looped over. Then make the resulting list into a dataframe
+
+CD4_ED50s<-lapply(unique(merge_data001$Donor_stim_form), FUN = get_ED50_CD4)
+
+names(CD4_ED50s)<-unique(merge_data001$Donor_stim_form)
+
+CD4_ED50s<-CD4_ED50s %>%
+  bind_rows(CD4_ED50s)%>%
+  gather(key = Donor_stim_form, value = CD4_IC50)%>%
+  unique()
+
+#repeat for CD8 data
+get_ED50_CD8<-function(condition_data){
+  merge_data001 %>%
+  filter(CD8_less_than_200 == "no",
+         Donor_stim_form == condition_data) %>%
+           drm(CD8_proliferated ~ ug_per_mL_MPA, 
+    fct = LL.4(names = c("Slope", "LL", "UL", "ED50")),
+    data = . )%>%
+      ED(., 50, display = FALSE)%>%
+    .[1]
+}
+
+
+CD8_ED50s<-lapply(unique(merge_data001$Donor_stim_form), FUN = get_ED50_CD8)
+
+names(CD8_ED50s)<-unique(merge_data001$Donor_stim_form)
+
+CD8_ED50s<-CD8_ED50s %>%
+  bind_rows(CD8_ED50s)%>%
+  gather(key = Donor_stim_form, value = CD8_IC50)%>%
+  unique()
+
+
+#merge together the CD8 and CD4 data, then merge it into the merge_data001 df, all by Donor_stim_form
+
+
+IC50s<-merge(CD8_ED50s,CD4_ED50s, by = "Donor_stim_form")%>%
+  merge(., merge_data001)%>%
+  dplyr::select(Donor, Stimulation, Formulation, Donor_stim_form, CD8_IC50,CD4_IC50)%>%
+  unique()
+```
+## IC50 calculations
+
+We calculated the IC50's for CD4+ and CD8+ cells to see what concentration of drug is necessary to reduce proliferation by 50%.
+
+
+### CD4+ IC50s
+
+```{r plot CD4 IC50s}
+
+
+IC50s<- IC50s %>%
+  mutate(Donor = str_replace(Donor, "donor_", ""))
+
+ggplot(IC50s, aes(x = Donor, y = CD4_IC50))+
+  geom_point(aes(color = Formulation), size = 3)+
+  facet_wrap(~Stimulation)+
+  scale_y_log10()+
+  labs(y = "CD4 IC50 \U03BCg/mL (log10)")+
+  theme(axis.title.y = element_text(size = 15),
+        axis.title.x = element_text(size = 15),
+        axis.text.x = element_text(size = 15), 
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 15), 
+    legend.title = element_text(size = 15),
+    strip.text = element_text(size = 12))
+
+```
+
+
+
+### CD8+ IC50s
+```{r plot CD8 IC50s} 
+
+ggplot(IC50s, aes(x = Donor, y = CD8_IC50))+
+  geom_point(aes(color = Formulation), size = 3)+
+  facet_wrap(~Stimulation)+
+  labs(y = "CD4 IC50 \U03BCg/mL (log 10)")+
+  scale_y_log10()+
+  theme(axis.title.y = element_text(size = 15),
+        axis.title.x = element_text(size = 15),
+        axis.text.x = element_text(size = 15), 
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 15), 
+    legend.title = element_text(size = 15),
+    strip.text = element_text(size = 12))
+
+```
+
+
+## Viability and IC50s
+
+In order to see what the viability would be at the IC50 concentrations, we plotted the IC50s on the viability curves.
+
+
+### Viability and CD4+ IC50
+
+These are the same viability results with purple lines showing where the IC50 concentrations intersect with the viability curves.
+```{r plot IC50s CD4}
+
+#CD4, put the IC50s in as geom_vline
+
+merge_data001%>%
+ filter(live_less_than_2k == "no")%>%
+ggplot(aes(x = ug_per_mL_MPA, y = live))+
+  #geom_point(aes(color = Formulation), alpha = 0.3, size = 2)+
+  stat_summary(fun.y = mean, geom = "line", aes(group = interaction(Donor,Formulation), linetype = Donor), size = 1)+
+  ggtitle("Percent viability and CD4+ ")+
+  scale_x_log10()+
+  facet_grid(Stimulation~Formulation)+
+  labs(y = "Percent Live", x = "\U03BCg/mL MPA(log10)")+
+  theme(axis.title.y = element_text(size = 15),
+        axis.title.x = element_text(size = 15),
+        axis.text.x = element_text(size =15),
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 15),
+    legend.title = element_text(size = 15),
+    strip.text = element_text(size = 10))+
+  geom_vline(data= IC50s, aes(xintercept = CD4_IC50, linetype =  Donor), color = "purple", size = 1)
+
+```
+
+
+
+
+
+
+### Viability and CD8+ IC50
+
+Here are the viability results again, but with the CD8+ IC50 plotted in red. The purple CD4+ IC50 is still there in the background for comparison.
+
+```{r plot IC50s CD8}
+
+
+merge_data001%>%
+ filter(live_less_than_2k == "no")%>%
+ggplot(aes(x = ug_per_mL_MPA, y = live))+
+  #geom_point(aes(color = Formulation), alpha = 0.3, size = 2)+
+  stat_summary(fun.y = mean, geom = "line", aes(group = interaction(Donor,Formulation), linetype = Donor), size = 1)+
+  ggtitle("Percent viability and CD8+ IC50")+
+  scale_x_log10()+
+  facet_grid(Stimulation~Formulation)+
+  labs(y = "Percent Live", x = "\U03BCg/mL MPA(log10)")+
+  theme(axis.title.y = element_text(size = 15),
+        axis.title.x = element_text(size = 15),
+        axis.text.x = element_text(size =15), 
+    axis.text.y = element_text(size = 15),
+    legend.text = element_text(size = 15), 
+    legend.title = element_text(size = 15),
+    strip.text = element_text(size = 10))+
+  geom_vline(data= IC50s, aes(xintercept = CD4_IC50, linetype =  Donor), color = "purple", size = 1, alpha = 0.5)+
+  geom_vline(data= IC50s, aes(xintercept = CD8_IC50, linetype =  Donor), color = "red", size = 1)
+
+```
+
+
+### Conclusions
+
+* Viability decreases with an increase in drug concentration.
+
+* Proliferation drops off in about the same point in the titration for all the conditions except in CD4+ T cells with 50X MPA conjugated and cytokine stimulation where pattern is a little different.
+
+* The intersection of the IC50's and the viability curves show that when we use enough drug to decrease proliferation  by 50%, we are left with viabilites between 40 and 80%.
+
+* The IC50 for the bead stimulated conditions was always higher  that for the cytokine stimulated conditions, but not by very much.
+
+* IC50 for the Free drug and MPA loaded nanoparticle conditions were similar.
