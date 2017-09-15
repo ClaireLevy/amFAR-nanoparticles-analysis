@@ -1,0 +1,262 @@
+---
+title: "Effect of Ingenol-containing CD4 targeting nanoparticle formulations on CD69 (003 LRA)"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(plater)
+library(stringr)
+```
+
+
+```{r read in flow data}
+# read in flow data ------------------------------------------------------------
+# use readr::read_tsv because here is a weird NA symbol later in the table and 
+# this way it gets turned into an NA instead of making all the columns factors
+d <- read.csv("../003_LRA/14-Sep-2017 FlowJo table.csv")
+
+
+#the "." in the colnames should be a "-" sign but that is annoying so I'll replace with "Neg"
+
+colnames(d)<- str_replace(colnames(d),"\\.","Neg")
+
+
+# read in plate layout data ----------------------------------------------------
+dir <- "../003_LRA/plate_layout_"
+mapping_files <- paste0(dir, c("BP4_and_control.csv",
+                               "CD4_and_CD4_iso.csv",
+                               "fCD4_and_fCD4_iso.csv",
+                               "free_and_bare.csv"))
+
+#read in the plate layouts in and give them the same names
+plate_mappings <- read_plates(mapping_files, plate_names = 
+   c("BP4_and_control",
+                               "CD4_and_CD4_iso",
+                               "fCD4_and_fCD4_iso",
+                               "free_and_bare") , well_ids_column = "Well")
+
+```
+
+
+```{r}
+# data is ready ----------------------------------------------------------------
+d <- inner_join(d, plate_mappings)
+  
+to_plot <- d %>% 
+  # for combos just use concentration of one drug
+  mutate(NgPerMl = as.numeric(str_replace(Concentration_ng_per_mL, " .*", ""))) %>% 
+  # omit nanoparticle alone
+  filter(Donor != "Nanoparticles without cells") %>% 
+  mutate(Donor = paste("Donor", Donor))
+
+dmso <- filter(to_plot, Drug == "DMSO") %>% 
+  group_by(Plate, Donor) %>% 
+  summarise_at(vars(Live:CD8NegCD69MFI), funs(mean))
+
+tests <- to_plot %>% 
+  filter(Drug != "DMSO") %>% 
+  mutate(Formulation = ifelse(Formulation == "Free", 
+    "Free Drug", "Nanoparticle")) 
+```
+
+## Goal
+
+Use the proxy marker CD69 to test the effectivness of various CD4+ cell targeting nanoparticle formulations that are chemically conjugated to the LRA Ingenol. A previous experiment (002_LRA) showed that Ingenol up-regulated CD69 in both CD4+ and CD8+ T cells. If the targeting is effective, we expect to repeat up-regulation of CD69 in CD4+ T cells but not in (un-targeted) CD8+ T cells.
+
+
+## Experiment
+
+24h exposure of human PBMC (two donors, 100k-150k cells per well, in duplicate) to 6 nanoparticle formulations:
+
+
+1.	Ingenol nanoparticles
+
+2.	Ingenol nanoparticles with BP4 (CD4-targeting peptide)
+
+3.	Ingenol nanoparticles with CD4 antibody
+
+4.	Ingenol nanoparticles with isotype antibody
+
+5.	Ingenol nanoparticles with fragment CD4 antibody
+
+6.	Ingenol nanoparticles with fragment isotype antibody
+
+
+To control for the effect of nanoparticles we also exposed cells to Ingenol free drug. The nanoparticle Ingenol concentration was 20x that of the free drug.  *Shijie's experiments showed that you should use ~50X dose for nanoparticles but we didn't have enough nanoparticles so had to do 20X*
+
+As a negative control, DMSO was used at a concentration matching that of the highest drug concentration. 
+
+After exposure, cells were stained for viability, cell lineage, and for CD69, which we showed to be up-regulated in both CD4+ and CD8+ T cells upon exposure to Ingenol in a previous experiment.
+
+Drugs were diluted in threefold steps, with the middle dilution being the same concentrations that Shijie when he tested the drugs in combination in Jlat cells. 
+
+
+
+## Viability and cell number
+
+We first assessed the viability of all cells, which is shown below. 
+
+Each symbol represents a single well (each condition was run in two wells), with colors representing drug formulations. The horizontal lines show the viability of the DMSO-treated wells. 
+
+ 
+```{r}
+helper <- function(y) {
+  ggplot(tests, aes_string(x = "log10(NgPerMl)", y = y, color = "Formulation")) + 
+    geom_hline(data = dmso, aes_string(yintercept = y)) +
+    geom_point(size = 2) +
+    facet_grid(~Donor) + 
+    stat_summary(fun.y = "mean", geom = "line", aes(group = Formulation)) + 
+    xlab("ng/mL (log10)")
+}
+
+helper("Live") + ylab("Viability") + ylim(c(0, 100))
+```
+
+## Targeting nanoparticles interfere with CD4+ staining
+
+Flow plots showed diminished CD4+ populations at higher concentrations of nanoparticles. In contrast, gating on CD8- to capture CD4+ cells did not show this pattern. This suggests that the nanoparticles may have interfered with binding of the anti-CD4 antibody that we used for phenotyping the cells.
+
+Because of this effect, we used the percentages from the CD8- gates, rather than the CD4+ gates, for the rest of the analyses for this experiment.
+
+
+```{r CD4 staining}
+#I want to show that CD4 staining didn't work very well, especially with higher drug concentrations and that CD8Neg is a better way to look at the CD4+ cells.
+
+# select just the meta data columns and the CD4, CD8 and CD8Neg.
+#Gather the data so all the Percentages are in a column called Percent and all the Gates (CD4, CD8 and CD8Neg) that the percentages belong to are in another column.
+
+# Then plot the NgPerMl vs the Percent in the different gates (make gates different shapes) and facet by donor.
+
+CD4_vs_CD8Neg_staining <- tests %>%
+  select(CD4, CD8, CD8Neg, Formulation, Targeting, NgPerMl, Donor)%>%
+  gather(data = ., key = Gate, value = Percent, CD4, CD8, CD8Neg)
+
+ggplot(CD4_vs_CD8Neg_staining, aes(x = log10(NgPerMl), Percent )) +
+  geom_point(aes(color = Gate))+
+  facet_grid(Donor~Formulation)
+
+```
+
+
+## Percent CD69+ 
+
+### anti-CD4 antibody targeting and isotype control
+
+#### CD8- T cells
+
+
+```{r}
+
+#Want to look at the percentages in the CD8CD69 gates vs. the CD8NegCD69 gates for each of the nanoparticle formulations.
+
+#If targeting worked, should see higher percentages in the CD8NegCD69 gates with the targeted NPs and about the same for the isotype controls and for free drug. 
+
+tests %>%
+  filter(Targeting == "CD4 antibody"| Targeting == "Isotype for CD4 antibody" | Targeting == "None"|Targeting == "Free Drug")%>%
+ggplot(aes_string(x = "log10(NgPerMl)", y = "CD8NegCD69", color = "Targeting")) + 
+    geom_hline(data = dmso, aes_string(yintercept = "CD8NegCD69"))+
+  geom_point(size = 2) +
+    facet_grid(~Donor) + 
+    stat_summary(fun.y = "mean", geom = "line", aes(group = Targeting)) + 
+    xlab("ng/mL (log10)")
+
+
+```
+
+### CD8+ T cells
+
+```{r}
+
+tests %>%
+  filter(Targeting == "CD4 antibody"| Targeting == "Isotype for CD4 antibody" | Targeting == "None"|Targeting == "Free Drug")%>%
+ggplot(aes_string(x = "log10(NgPerMl)", y = "CD8CD69", color = "Targeting")) + 
+    geom_hline(data = dmso, aes_string(yintercept = "CD8CD69"))+
+  geom_point(size = 2) +
+    facet_grid(~Donor) + 
+    stat_summary(fun.y = "mean", geom = "line", aes(group = Targeting)) + 
+    xlab("ng/mL (log10)")
+
+
+
+
+
+
+#want one plot per targeting type + isotype control, faceted by donor and by gate type (gates are CD8NegCD69 and CD8CD69).
+
+
+# In order to facet by gate, need to gather the data from the CD8NegCD69 and CD8CD69, like I did in the CD4 staining chunk above.
+
+#I'll add the hline for the dmso CD69, but I'll have to modify the dmso df to make it work with my plot
+
+
+
+dmso_CD69_results <-dmso %>%
+  select(CD8CD69, CD8NegCD69,Donor)%>%
+  gather(data = ., key = Gate, value = Percent,CD8CD69, CD8NegCD69)
+
+CD69_results <- tests %>%
+  select(CD8CD69, CD8NegCD69, Formulation, Targeting, NgPerMl, Donor,Drug)%>%
+  gather(data = ., key = Gate, value = Percent,CD8CD69, CD8NegCD69)
+
+
+CD69_results%>%
+  filter(Targeting == "CD4 antibody"| Targeting == "Isotype for CD4 antibody" | Targeting == "None"|Targeting == "Free Drug") %>%
+  
+  ggplot(aes_string(x = "log10(NgPerMl)", y = "Percent", color = "Targeting")) + 
+    geom_hline(aes(yintercept = Percent),data = dmso_CD69_results)+
+  geom_point(aes(shape = Drug),size = 2) +
+    facet_grid(Donor~Gate) + 
+    stat_summary(fun.y = "mean", geom = "line", aes(group = Targeting)) + 
+    xlab("ng/mL (log10)")
+  
+
+
+
+
+```
+Similarly for cell number: 
+
+```{r}
+# helper("log10(CD4Count)") + ylab("# Live CD4 cells (log10)") + ylim(c(1, 4))
+# helper("log10(CD8Count)") + ylab("# Live CD8 cells (log10)") + ylim(c(1, 4))
+```
+
+In order to avoid over-interpretation of wells where there were few, mostly-dead cells, we removed measurements from wells where overall viability was below 50% or CD4 or CD8 cell counts were below 500. This was typically the highest one or two concentration steps. 
+
+```{r}
+# tests <- tests %>% 
+  # filter(Live > 50, CD4Count > 500, CD8Count > 500)
+```
+
+
+## Gene proxies for Ingenol
+
+### CD69
+
+
+
+```{r}
+# helper("CD4CD69") + ylab("CD69% of CD4 T cells") + ylim(c(0, 100))
+```
+
+... and CD8+ T cells ...
+
+```{r}
+# helper("CD8CD69") + ylab("CD69% of CD8 T cells") + ylim(c(0, 100))
+```
+
+
+### Median fluorescence intensity of CD4 and CD8
+
+
+
+```{r}
+
+```
+
+
+
+## Conclusions
+
