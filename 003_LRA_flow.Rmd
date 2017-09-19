@@ -4,7 +4,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
 library(tidyverse)
 library(plater)
 library(stringr)
@@ -21,8 +22,11 @@ d <- read.csv("../003_LRA/14-Sep-2017 FlowJo table.csv")
 #the "." in the colnames should be a "-" sign but that is annoying so I'll replace with "Neg"
 
 colnames(d)<- str_replace(colnames(d),"\\.","Neg")
+```
 
 
+
+```{r}
 # read in plate layout data ----------------------------------------------------
 dir <- "../003_LRA/plate_layout_"
 mapping_files <- paste0(dir, c("BP4_and_control.csv",
@@ -31,7 +35,7 @@ mapping_files <- paste0(dir, c("BP4_and_control.csv",
                                "free_and_bare.csv"))
 
 #read in the plate layouts in and give them the same names
-plate_mappings <- read_plates(mapping_files, plate_names = 
+plate_mappings <- plater::read_plates(mapping_files, plate_names = 
    c("BP4_and_control",
                                "CD4_and_CD4_iso",
                                "fCD4_and_fCD4_iso",
@@ -44,21 +48,56 @@ plate_mappings <- read_plates(mapping_files, plate_names =
 # data is ready ----------------------------------------------------------------
 d <- inner_join(d, plate_mappings)
   
+
+#In addition to removing the rows where the Drug is "Nanoparticles without cells" I will also remove the CD4CD69MFI column because I'm not going to use it (since the CD4 staining had problems I'll use CD8- to represent CD4+ cells). since we counted 0% CD4 cells in that well, the CD4CD69MFI has "n/a" which screws up my classes and prevents the MFI values from being numeric.
+
+
 to_plot <- d %>% 
   # for combos just use concentration of one drug
   mutate(NgPerMl = as.numeric(str_replace(Concentration_ng_per_mL, " .*", ""))) %>% 
   # omit nanoparticle alone
-  filter(Donor != "Nanoparticles without cells") %>% 
-  mutate(Donor = paste("Donor", Donor))
+  filter(Drug != "Nanoparticles without cells") %>% 
+  mutate(Donor = paste("Donor", Donor))%>%
+  select(-CD4CD69MFI)
 
+
+# When there are no cells in a gate, the MFI is given as n/a. This was the case in the "Nanoparticles without cells" wells in the "d" dataframe and in one well where the CD4 staining apparently didn't work (fCD4_and_fCD4_iso, C03). 
+
+#This caused the class of the columns that had n/a (CD4CD69MFI and CD8CD69MFI)to become factors.I fixed the problem wit the CD4CD69MFI problem by removing it, but after filtering out those ""Nanoparticles , the incorrect type carried over in the CD8CD69MFI column so I need to change it here.  
+
+#Then I'll convert the remaining problematic column, CD8CD69MFI to numeric (After first converting to character to avoid get the number of the factor level!!!!)
+
+to_plot$CD8CD69MFI <- as.numeric(as.character(to_plot$CD8CD69MFI))
+
+```
+
+
+```{r make dmso and no dmso dfs}
 dmso <- filter(to_plot, Drug == "DMSO") %>% 
   group_by(Plate, Donor) %>% 
-  summarise_at(vars(Live:CD8NegCD69MFI), funs(mean))
+  summarise_at(vars(Live:CD8NegCD69MFI), funs(mean))%>%
+  ungroup()
 
 tests <- to_plot %>% 
   filter(Drug != "DMSO") %>% 
   mutate(Formulation = ifelse(Formulation == "Free", 
-    "Free Drug", "Nanoparticle")) 
+    "Free Drug", "Nanoparticle")) %>%
+  mutate(Targeting = str_replace(Targeting, "None", "Non-Targeted\nNanoparticles"))
+
+
+#make targeting a factor and order in the way I want on plots
+
+tests$Targeting <- factor(tests$Target, levels = c( "CD4 antibody","Isotype for CD4 antibody","Fragment CD4 antibody", "Isotype for fragment CD4 antibody", "BP4","Free Drug","Non-Targeted\nNanoparticles" ))
+
+
+#the values in the Targeting column are long and won't fit well on my plots so I'll add some line breaks here.
+
+tests <- tests %>%
+  mutate(Targeting =  str_replace(Targeting, "Isotype for CD4 antibody", "Isotype for\nCD4 antibody"))%>%
+  mutate(Targeting = str_replace(Targeting, "Fragment CD4 antibody", "Fragment\nCD4 antibody"))%>%
+  mutate(Targeting = str_replace(Targeting,"Isotype for fragment CD4 antibody", "Isotype for\nCD4 fragment\nantibody") )
+
+
 ```
 
 ## Goal
@@ -90,7 +129,7 @@ As a negative control, DMSO was used at a concentration matching that of the hig
 
 After exposure, cells were stained for viability, cell lineage, and for CD69, which we showed to be up-regulated in both CD4+ and CD8+ T cells upon exposure to Ingenol in a previous experiment.
 
-Drugs were diluted in threefold steps, with the middle dilution being the same concentrations that Shijie when he tested the drugs in combination in Jlat cells. 
+Drugs were diluted in threefold steps, with the middle dilution being the same concentrations that Shijie used when he tested the drugs in combination in Jlat cells. 
 
 
 
@@ -100,8 +139,12 @@ We first assessed the viability of all cells, which is shown below.
 
 Each symbol represents a single well (each condition was run in two wells), with colors representing drug formulations. The horizontal lines show the viability of the DMSO-treated wells. 
 
+
+Viability decreased as the concentration of Ingenol increased, but not as dramactically as in the last experiment.
  
-```{r}
+```{r viability}
+#this is a helper function for plotting.
+
 helper <- function(y) {
   ggplot(tests, aes_string(x = "log10(NgPerMl)", y = y, color = "Formulation")) + 
     geom_hline(data = dmso, aes_string(yintercept = y)) +
@@ -112,13 +155,19 @@ helper <- function(y) {
 }
 
 helper("Live") + ylab("Viability") + ylim(c(0, 100))
+
 ```
+
+
 
 ## Targeting nanoparticles interfere with CD4+ staining
 
-Flow plots showed diminished CD4+ populations at higher concentrations of nanoparticles. In contrast, gating on CD8- to capture CD4+ cells did not show this pattern. This suggests that the nanoparticles may have interfered with binding of the anti-CD4 antibody that we used for phenotyping the cells.
+Flow plots showed diminished CD4+ populations at higher concentrations of nanoparticles. In contrast, gating on CD8- to capture CD4+ cells did not show this pattern. This suggests that the nanoparticles may have interfered with binding of the anti-CD4 antibody that we used for phenotyping the cells. The effect is strongest for the targeting nanoparticles but is also present in the isotype controls and non-targeted nanoparticles.
+
+This is shown in the plot below, where the red dots, representing the percentage of cells in the CD4+ gate drop to lower percentages as the drug concentration increases along the x-axis.
 
 Because of this effect, we used the percentages from the CD8- gates, rather than the CD4+ gates, for the rest of the analyses for this experiment.
+
 
 
 ```{r CD4 staining}
@@ -135,128 +184,271 @@ CD4_vs_CD8Neg_staining <- tests %>%
 
 ggplot(CD4_vs_CD8Neg_staining, aes(x = log10(NgPerMl), Percent )) +
   geom_point(aes(color = Gate))+
-  facet_grid(Donor~Formulation)
+  stat_summary(fun.y = "mean", geom = "line", aes(group = Gate, color = Gate)) +
+  facet_grid(Donor~Targeting)+
+  labs(x = "ng/mL (log10)", y = "Percent in gate")+
+  theme(strip.text = element_text(size = 8))
 
 ```
 
 
-## Percent CD69+ 
+## Percent CD69+
 
-### anti-CD4 antibody targeting and isotype control
 
-#### CD8- T cells
-
+Symbols represent experimental replicates and the connecting lines show the average of the replicates. The horizontal lines represent the DMSO negative controls.
 
 ```{r}
-
-#Want to look at the percentages in the CD8CD69 gates vs. the CD8NegCD69 gates for each of the nanoparticle formulations.
-
-#If targeting worked, should see higher percentages in the CD8NegCD69 gates with the targeted NPs and about the same for the isotype controls and for free drug. 
-
-tests %>%
-  filter(Targeting == "CD4 antibody"| Targeting == "Isotype for CD4 antibody" | Targeting == "None"|Targeting == "Free Drug")%>%
-ggplot(aes_string(x = "log10(NgPerMl)", y = "CD8NegCD69", color = "Targeting")) + 
-    geom_hline(data = dmso, aes_string(yintercept = "CD8NegCD69"))+
-  geom_point(size = 2) +
-    facet_grid(~Donor) + 
-    stat_summary(fun.y = "mean", geom = "line", aes(group = Targeting)) + 
-    xlab("ng/mL (log10)")
-
-
-```
-
-### CD8+ T cells
-
-```{r}
-
-tests %>%
-  filter(Targeting == "CD4 antibody"| Targeting == "Isotype for CD4 antibody" | Targeting == "None"|Targeting == "Free Drug")%>%
-ggplot(aes_string(x = "log10(NgPerMl)", y = "CD8CD69", color = "Targeting")) + 
-    geom_hline(data = dmso, aes_string(yintercept = "CD8CD69"))+
-  geom_point(size = 2) +
-    facet_grid(~Donor) + 
-    stat_summary(fun.y = "mean", geom = "line", aes(group = Targeting)) + 
-    xlab("ng/mL (log10)")
-
-
-
-
-
 
 #want one plot per targeting type + isotype control, faceted by donor and by gate type (gates are CD8NegCD69 and CD8CD69).
 
 
 # In order to facet by gate, need to gather the data from the CD8NegCD69 and CD8CD69, like I did in the CD4 staining chunk above.
 
-#I'll add the hline for the dmso CD69, but I'll have to modify the dmso df to make it work with my plot
 
 
 
-dmso_CD69_results <-dmso %>%
-  select(CD8CD69, CD8NegCD69,Donor)%>%
-  gather(data = ., key = Gate, value = Percent,CD8CD69, CD8NegCD69)
-
-CD69_results <- tests %>%
+CD69_percent <- tests %>%
   select(CD8CD69, CD8NegCD69, Formulation, Targeting, NgPerMl, Donor,Drug)%>%
   gather(data = ., key = Gate, value = Percent,CD8CD69, CD8NegCD69)
 
 
-CD69_results%>%
-  filter(Targeting == "CD4 antibody"| Targeting == "Isotype for CD4 antibody" | Targeting == "None"|Targeting == "Free Drug") %>%
+
+
+
+
+#I'll add the hline for the dmso CD69, but I'll have to modify the dmso df to make it work with my plot
+dmso_CD69_percent <-dmso %>%
+  select(CD8CD69, CD8NegCD69,Donor)%>%
+  gather(data = ., key = Gate, value = Percent,CD8CD69, CD8NegCD69)
+```
+
+
+```{r percent plot functions}
+#here is a function for making the plots for the percent CD69 results
+
+
+percent_plot <-function(df_to_plot){
   
-  ggplot(aes_string(x = "log10(NgPerMl)", y = "Percent", color = "Targeting")) + 
-    geom_hline(aes(yintercept = Percent),data = dmso_CD69_results)+
-  geom_point(aes(shape = Drug),size = 2) +
-    facet_grid(Donor~Gate) + 
-    stat_summary(fun.y = "mean", geom = "line", aes(group = Targeting)) + 
-    xlab("ng/mL (log10)")
+ggplot(df_to_plot, aes(x = log10(NgPerMl), y = Percent, color = Targeting)) + 
+geom_hline(aes(yintercept = Percent),
+           data = dmso_CD69_percent)+
+geom_point(size = 2) +
+facet_grid(Donor~Gate) + 
+stat_summary(fun.y = "mean", geom = "line", aes(group = Targeting)) + 
+labs(x = "ng/mL (log10)", y = "Percent in gate")
+  
+}
+
+
+percent_plot2 <- function(df_to_plot){
+  ggplot(df_to_plot, aes(x = log10(NgPerMl), y = Percent, color = Gate)) + 
+geom_hline(aes(yintercept = Percent, color = Gate),
+           data = dmso_CD69_percent)+
+geom_point(size = 2) +
+facet_grid(Donor~Targeting) + 
+stat_summary(fun.y = "mean", geom = "line", aes(group = Gate)) + 
+labs(x = "ng/mL (log10)", y = "Percent in gate")
+}
+
+
+```
+
+### anti-CD4 antibody targeting and isotype control
+
+```{r percent plot helper function}
+
+cd4_cd4_iso_percent <- CD69_percent%>%
+  filter(Targeting == "CD4 antibody"| Targeting == "Isotype for\nCD4 antibody" | Targeting == "Non-Targeted\nNanoparticles"|Targeting == "Free Drug")
+  
+  
+#percent_plot(cd4_cd4_iso_percent)
+
+
+percent_plot2(cd4_cd4_iso_percent)
+
+
+
+
+
+```
+
+### Fragment anti-CD4 antibody targeting and isotype control
+
+```{r frament and iso}
+
+fragment_and_fiso_percent <- CD69_percent%>%
+  filter(Targeting == "Fragment\nCD4 antibody"| Targeting == "Isotype for\nCD4 fragment\nantibody"| Targeting == "Non-Targeted\nNanoparticles"|Targeting == "Free Drug")
+  
+  
   
 
+#percent_plot(fragment_and_fiso_percent)
 
 
+
+percent_plot2(fragment_and_fiso_percent)
+```
+
+
+### BP4 targeting
+
+```{r bp4}
+
+bp4_percent <-CD69_percent%>%
+  filter(Targeting == "BP4"|Targeting == "Non-Targeted\nNanoparticles"|Targeting == "Free Drug")
+  
+#percent_plot(bp4_percent)
+
+percent_plot2(bp4_percent)
 
 ```
-Similarly for cell number: 
+
+## Median fluorescence intensity of CD69
+
+Symbols represent experimental replicates and the connecting lines show the average of the replicates. The horizontal lines represent the DMSO negative controls.
 
 ```{r}
-# helper("log10(CD4Count)") + ylab("# Live CD4 cells (log10)") + ylim(c(1, 4))
-# helper("log10(CD8Count)") + ylab("# Live CD8 cells (log10)") + ylim(c(1, 4))
+# To show the MFI in the same format as I did for percent CD69, I need to prepare the data in the same way, but use the values from the MFI columns in the "tests" df and the "dmso" df.
+
+
+
+CD69_MFI <- tests %>%
+  select(CD8CD69MFI, CD8NegCD69MFI, Formulation, Targeting, NgPerMl, Donor,Drug)%>%
+  gather(data = ., key = Gate, value = MFI, CD8CD69MFI, CD8NegCD69MFI) 
+
+#the values in the Targeting column are long and don't fit well on my plots so I'll add some line breaks here.
+
+
+
+dmso_CD69_MFI <-dmso %>%
+  select(CD8CD69MFI, CD8NegCD69MFI,Donor)%>%
+  gather(data = ., key = Gate, value = MFI,CD8CD69MFI, CD8NegCD69MFI)
+
+
+
+#here is a function for making the plots for the CD69 MFI results
+
+MFI_plot <-function(df_to_plot){
+  
+ggplot(df_to_plot, aes(x = log10(NgPerMl), y = MFI, color = Targeting)) + 
+geom_hline(aes(yintercept = MFI),
+           data = dmso_CD69_MFI)+
+geom_point(size = 2) +
+facet_grid(Donor~Gate) + 
+stat_summary(fun.y = "mean", geom = "line", aes(group = Targeting)) + 
+labs(x = "ng/mL (log10)", y = "MFI")
+  
+}
+
+
+#Here is a function for a different looking MFI plot
+
+MFI_plot2 <- function(df_to_plot){
+  ggplot(df_to_plot, aes(x = log10(NgPerMl), y = MFI, color = Gate)) + 
+geom_hline(aes(yintercept = MFI, color = Gate),
+           data = dmso_CD69_MFI)+
+geom_point(size = 2) +
+facet_grid(Donor~Targeting) + 
+stat_summary(fun.y = "mean", geom = "line", aes(group = Gate)) + 
+labs(x = "ng/mL (log10)", y = "MFI")
+}
+
 ```
 
-In order to avoid over-interpretation of wells where there were few, mostly-dead cells, we removed measurements from wells where overall viability was below 50% or CD4 or CD8 cell counts were below 500. This was typically the highest one or two concentration steps. 
-
-```{r}
-# tests <- tests %>% 
-  # filter(Live > 50, CD4Count > 500, CD8Count > 500)
-```
-
-
-## Gene proxies for Ingenol
-
-### CD69
 
 
 
-```{r}
-# helper("CD4CD69") + ylab("CD69% of CD4 T cells") + ylim(c(0, 100))
-```
-
-... and CD8+ T cells ...
-
-```{r}
-# helper("CD8CD69") + ylab("CD69% of CD8 T cells") + ylim(c(0, 100))
-```
+### anti-CD4 antibody targeting and isotype control
 
 
-### Median fluorescence intensity of CD4 and CD8
+```{r CD4 and iso mfi}
+
+cd4_cd4_iso_MFI <- CD69_MFI%>%
+  filter(Targeting == "CD4 antibody"| Targeting == "Isotype for\nCD4 antibody" | Targeting == "Non-Targeted\nNanoparticles"|Targeting == "Free Drug")
 
 
+#MFI_plot(cd4_cd4_iso_MFI)
 
-```{r}
+MFI_plot2(cd4_cd4_iso_MFI)
+
 
 ```
 
+### Fragment anti-CD4 antibody targeting and isotype control
 
+
+```{r fragment and iso mfi}
+
+
+fragment_and_fiso_MFI <- CD69_MFI%>%
+  filter(Targeting == "Fragment\nCD4 antibody"| Targeting == "Isotype for\nCD4 fragment\nantibody"| Targeting == "Non-Targeted\nNanoparticles"|Targeting == "Free Drug")
+  
+
+#MFI_plot(fragment_iso_MFI)
+
+MFI_plot2(fragment_and_fiso_MFI)
+```
+
+### BP4 targeting
+
+```{r bp4 mfi}
+
+bp4_MFI <-CD69_MFI%>%
+  filter(Targeting == "BP4"|Targeting == "Non-Targeted\nNanoparticles"|Targeting == "Free Drug")
+  
+#MFI_plot(bp4_MFI)
+
+MFI_plot2(bp4_MFI)
+
+```
+
+### MFI ratios
+
+The following plot shows the ratio of the CD8- MFI over the CD8+ MFI. The horizontal line is at 1, where the MFI's are equal.
+
+```{r MFI ratios}
+
+tests <- tests %>%
+  mutate(CD8Neg_CD8_MFI_ratio = CD8Neg/CD8)
+
+
+tests$Targeting <- factor(tests$Targeting, levels = c("CD4 antibody", "Isotype for\nCD4 antibody", "Fragment\nCD4 antibody","Isotype for\nCD4 fragment\nantibody", "BP4","Free Drug", "Non-Targeted\nNanoparticles" ))
+
+
+ggplot(tests, aes(x = log10(NgPerMl), CD8Neg_CD8_MFI_ratio )) +
+  geom_point(aes())+
+  stat_summary(fun.y = "mean", geom = "line", aes()) +
+  facet_grid(Donor~Targeting)+
+  labs(x = "ng/mL (log10)", y = "CD8-/CD8 MFI")+
+  geom_hline(yintercept = 1, color = "blue")+
+  theme(strip.text = element_text(size = 8))
+
+```
 
 ## Conclusions
 
+### CD4+ staining: problems with nanoparticles
+
+It looks like the targeting nanoparticles interfere with the phenotyping antibody, so we should use CD8- going forward to represent CD4+ T cells.
+
+### Percent CD69+: similar results within and between cell types
+
+Within cell types: We saw a similar percent of cells in the CD69+ gate within cell types when we compared the nanoparticle formulations and their isotype controls or non-targeting nanoparticles. 
+
+Between cells types: Across all formulations CD8- T cells had consistantly lower CD69+ percentages at higher drug concentrations, but the difference was quite small. In general, results do not show a strong targeting effect. 
+
+
+### CD69 MFI: CD8- has higher MFI, but no obvious targeting effect
+
+Within cell types: As with the %CD69 results, we saw similar responses between targeting formulations and their controls, with a small trend for slightly lower CD69 MFI's in the targeted formulations in CD8- cells.
+
+Between cell types: CD69 MFI's were consistantly higher in CD8- cells, particularly in Donor B.
+
+
+### Next steps
+
+* Include HLA-DR, CD28 and CXCR4 in staining panel again to show inflammatory (or lack thereof) response.
+
+* Try small steps in the serial dilutions. Here we did 3-fold steps, could go down to 2 or 1.5.
+
+* Maybe try different incubation times/time course experiment?
