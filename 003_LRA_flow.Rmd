@@ -123,7 +123,7 @@ Use the proxy marker CD69 to test the effectivness of various CD4+ cell targetin
 6.	Ingenol nanoparticles with fragment isotype antibody
 
 
-To control for the effect of nanoparticles we also exposed cells to Ingenol free drug. The nanoparticle Ingenol concentration was 20x that of the free drug.  *Shijie's experiments showed that you should use ~50X dose for nanoparticles but we didn't have enough nanoparticles so had to do 20X*
+To control for the effect of nanoparticles we also exposed cells to Ingenol free drug. The nanoparticle Ingenol concentration was 20x that of the free drug.  
 
 As a negative control, DMSO was used at a concentration matching that of the highest drug concentration. 
 
