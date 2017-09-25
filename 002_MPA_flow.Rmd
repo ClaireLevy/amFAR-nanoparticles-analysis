@@ -1,0 +1,344 @@
+---
+title: "Anti-proliferative effect of MPA-containing CD4 targeting nanoparticles (002_MPA)"
+output: html_document
+---
+
+## Goal
+Compare targeting of various formulations of MPA nanoparticles by measuring proliferation of CD8+ and CD4+ T cells. 
+
+## Experiment
+
+5 day exposure of anti-CD3/anti-CD28 bead stimulated and Cell Trace Violet stained human PBMC (two donors, 100k cells per well, in duplicate) to 6 nanoparticle formulations:
+
+
+
+1.	MPA nanoparticles (un-targeted)
+
+2.	MPA nanoparticles with BP4 (CD4-targeting peptide)
+
+3.	MPA nanoparticles with CD4 antibody
+
+4.	MPA nanoparticles with isotype antibody
+
+5.	MPA nanoparticles with fragment CD4 antibody
+
+5.	MPA nanoparticles with fragment isotype antibody
+
+
+
+
+To control for the effect of nanoparticles we also exposed cells to MPA free drug. As a negative control, DMSO was used at a concentration matching that of the highest drug concentration. Formulations were diluted in two-fold steps.
+
+Free MPA starting concentration: 0.4ug/mL
+
+Nanoparticle formulations starting concentration: 8ug/mL (20x free drug)
+
+
+After exposure, cells were stained for viability and  cell lineage.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(plater)
+library(stringr)
+library(ggplot2)
+```
+
+
+```{r read in flow data}
+
+
+dat <- read.csv("../002_MPA/Table.csv")
+
+
+```
+
+
+
+```{r}
+# read in plate layout data ----------------------------------------------------
+dir <- "../002_MPA/plate_layout_"
+mapping_files <- paste0(dir, c("BP4_control_beads.csv",
+                               "CD4_fragment_targeted_beads.csv",
+                               "CD4_targeted_beads.csv",
+                               "free_and_untargeted_beads.csv"))
+
+#read in the plate layouts in and give them the same names
+plate_mappings <- plater::read_plates(mapping_files, plate_names = 
+   c("BP4_controls",
+                               "fragment_isotype",
+                               "CD4_isotype",
+                               "bare_free") , well_ids_column = "Well")
+
+```
+
+
+```{r}
+
+dat <- inner_join(dat, plate_mappings)
+
+
+#remove the "nanoparticles without cells" wells, they were just there for setting gates.
+
+
+dat<- dat %>%
+  filter(Drug != "Nanoparticles without cells")
+
+
+#the values in the Targeting column are long and won't fit well on my plots so I'll add some line breaks here.
+
+dat <- dat %>%
+  mutate(Targeting =  str_replace(Targeting, "Isotype for CD4 antibody", "Isotype for\n CD4 antibody"))%>%
+  mutate(Targeting = str_replace(Targeting, "Fragment CD4 antibody", "Fragment\n CD4 antibody"))%>%
+  mutate(Targeting = str_replace(Targeting,"Isotype for fragment CD4 antibody", "Isotype for\n CD4 fragment\n antibody") ) %>%
+  mutate(Targeting = str_replace(Targeting,"Non-Targeted Nanoparticles", "Non-Targeted\n Nanoparticles"))
+
+#also make the targeting values factors and put them in my preferred order!!
+
+
+dat$Targeting <-factor(dat$Targeting, levels = c("CD4 antibody", "Isotype for\n CD4 antibody", "Fragment\n CD4 antibody", "Isotype for\n CD4 fragment\n antibody", "BP4", "Non-Targeted\n Nanoparticles","Free Drug" ))
+```
+
+
+```{r sanity check CD4}
+#quick look at data: CD4 and CD8 and CD8Neg counts 
+
+
+
+# ggplot(dat, aes(x = log10(NgPerMl), y = CD4Count))+
+#   geom_point(aes(color = Formulation))+
+#   facet_wrap(~Targeting)
+# 
+# ggplot(dat, aes(x = log10(NgPerMl), y = CD4CTVLow))+
+#   geom_point(aes(color = Formulation))+
+#   facet_wrap(~Targeting)
+# ```
+# 
+# ```{r sanity check CD8}
+# 
+# ggplot(dat, aes(x = log10(NgPerMl), y = CD8Count))+
+#   geom_point(aes(color = Formulation))+
+#   facet_wrap(~Targeting)
+# 
+# ggplot(dat, aes(x = log10(NgPerMl), y = CD8CTVLow))+
+#   geom_point(aes(color = Formulation))+
+#   facet_wrap(~Targeting)
+# ```
+# 
+# ```{r sanity check CD8Neg}
+# 
+# ggplot(dat, aes(x = log10(NgPerMl), y = CD8NegCount))+
+#   geom_point(aes(color = Formulation))+
+#   facet_wrap(~Targeting)
+# 
+# ggplot(dat, aes(x = log10(NgPerMl), y = CD8NegCTVLow))+
+#   geom_point(aes(color = Formulation))+
+#   facet_wrap(~Targeting)
+```
+## Viability
+
+
+We first assessed the viability of all cells, which is shown below.
+
+Each symbol represents a single well (each condition was run in two wells), with colors representing drug formulations. The horizontal lines show the viability of the DMSO-treated wells.
+
+As expected, viability decreased as the concentration of MPA increased.
+
+The points with high viability at higher concentrations represent cases where there were very few cells in the gate, but they happened to be live.
+
+
+
+```{r create DMSO and nonDMSO dfs}
+
+dmso <-  dat %>%
+  filter(Drug == "DMSO")%>%
+  group_by(Plate, Donor) %>% 
+  summarise_at(vars(Live:CD8NegCTVLow), funs(mean))%>%
+  ungroup()
+
+no_DMSO<-filter(dat, Drug != "DMSO")
+
+
+
+```
+
+```{r plot viability}
+ggplot(no_DMSO, aes(x = log10(NgPerMl), y = Live, color = Formulation)) + 
+    geom_hline(data = dmso, aes(yintercept = Live)) +
+    geom_point(size = 2) +
+    facet_grid(~Donor) + 
+    stat_summary(fun.y = "mean", geom = "line", aes(group = Formulation)) + 
+    xlab("ng/mL (log10)")
+```
+
+```{r filtering out low cell counts}
+
+#want to keep data where either CD8Count >100 or CD8Neg>100, otherwise remove the row.
+
+#To get CD8 high count data, select all cols EXCEPT CD8Neg ones. Filter for CD8Count >100. Gather. Repeat for CD8Neg, then rbind.
+
+CD8_high_count <- no_DMSO %>%
+  select(-CD8NegCount, -CD8Neg, -CD8NegCTVLow)%>%
+  filter(CD8Count > 100)%>%
+  gather(., key = Gate , value = Measurement,CD8:CD8CTVLow)
+  
+
+CD8Neg_high_count <- no_DMSO %>%
+  select(-CD8Count, -CD8, -CD8CTVLow)%>%
+  filter(CD8NegCount > 100)%>%
+  gather(., key = Gate , value = Measurement,CD8Neg:CD8NegCTVLow)
+
+
+high_count <- rbind(CD8Neg_high_count, CD8_high_count)
+#Something weird happened with the staining in the fragment_isotype plate in wells F04 and F05. #Cells are 100% live and >90% of them are CD8Neg. In F04 we counted 1775 CD8Neg cells but only 285 in F05.  >90% prolif in both. I will exclude them from the analysis here.
+
+
+high_count <-filter(high_count, X != "fragment_isotype F04" & X != "fragment_isotype F05")
+
+
+
+```
+
+## CD4 staining
+
+As in the most recent LRA experiment with targeting nanoparticles, some of the targeting nanoparticles seem to interfere with the phenotyping stain for CD4+ cells, so we are using a CD8- gate to represent CD4+ cells in this analysis.
+
+Data are not shown for wells where cell counts were <100.
+
+
+```{r CD4 staining}
+
+high_count %>%
+  filter(Gate == "CD8"|Gate == "CD8Neg" |Gate == "CD4")%>%
+ggplot(., aes(x = log10(NgPerMl), Measurement )) +
+  geom_point(aes(color = Gate))+
+  stat_summary(fun.y = "mean", geom = "line", aes(group = Gate, color = Gate)) +
+  facet_grid(Donor~Targeting)+
+  labs(x = "ng/mL (log10)", y = "Percent in gate")+
+  theme(strip.text = element_text(size = 8))
+
+ 
+
+```
+
+
+```{r gather dmso data}
+
+#make the dmso data long for plotting proliferation.
+prolif_dmso <-dmso %>%
+  select(Plate, Donor,CD8CTVLow, CD8NegCTVLow)%>%
+  gather(., key = Gate, value = Measurement, CD8CTVLow, CD8NegCTVLow)
+
+
+```
+
+```{r prolif plot function}
+#here is a function for making the plots for the percent prolif results
+
+prolif_plot <- function(df_to_plot){
+  ggplot(df_to_plot, aes(x = log10(NgPerMl), y = Measurement, color = Gate)) + 
+geom_hline(data = prolif_dmso, aes(yintercept = Measurement, color = Gate))+
+geom_point(size = 2) +
+facet_grid(Donor~Targeting) + 
+stat_summary(fun.y = "mean", geom = "line", aes(group = Gate)) + 
+labs(x = "ng/mL (log10)", y = "Percent Proliferated")
+}
+
+```
+
+
+```{r proliferation data}
+
+
+high_count_prolif <- high_count %>%
+  filter(Gate == "CD8NegCTVLow" | Gate == "CD8CTVLow")
+
+
+
+```
+
+## Anti-proliferative results
+
+Data are not shown for wells with cells counts <100. Horizontal lines show results for DMSO controls.
+
+### anti-CD4 antibody targeting and isotype control
+
+
+```{r CD4 targeting prolif}
+#Filter for CD8CTVLow and CD8NegCTVLow and for the antiCD4- ab targeting
+
+cd4_cd4_iso_prolif <- high_count_prolif%>%
+  filter(Targeting == "CD4 antibody"| Targeting == "Isotype for\n CD4 antibody" | Targeting == "Non-Targeted\n Nanoparticles"|Targeting == "Free Drug")
+
+
+prolif_plot(cd4_cd4_iso_prolif)
+
+```
+
+
+
+
+### Fragment anti-CD4 antibody targeting and isotype control
+
+```{r frament and iso}
+
+fragment_and_fiso_prolif <- high_count_prolif%>%
+  filter(Targeting == "Fragment\n CD4 antibody"| Targeting == "Isotype for\n CD4 fragment\n antibody"| Targeting == "Non-Targeted\n Nanoparticles"|Targeting == "Free Drug")
+  
+  
+
+prolif_plot(fragment_and_fiso_prolif)
+```
+
+
+### BP4 targeting
+
+```{r bp4}
+
+bp4_prolif <-high_count_prolif%>%
+  filter(Targeting == "BP4"|Targeting == "Non-Targeted\n Nanoparticles"|Targeting == "Free Drug")
+  
+prolif_plot(bp4_prolif)
+
+```
+
+### Proliferation ratios
+
+
+The following plot shows the ratio of the CD8+ CTV Low percentage over the CD8- CTV Low percentage. The horizontal line is at 1, where the percent proliferation is equal between the two cell types. 
+*Above* the blue line means that CD8+ proliferated more than CD8- cells.
+
+```{r CTV ratios}
+
+# to make a column for plotting of CD8NegCTVLow/CD8CTVLow, first spread the data back into wide format, then make a column for the ratio
+wide_high_count_prolif <- high_count_prolif %>%
+  spread(., Gate, Measurement)%>%
+  mutate(CD8_CD8Neg_ratio = CD8CTVLow/CD8NegCTVLow)
+  
+  ggplot(wide_high_count_prolif, aes(x = log10(NgPerMl), CD8_CD8Neg_ratio )) +
+  geom_point(aes())+
+  stat_summary(fun.y = "mean", geom = "line", aes()) +
+  facet_grid(Donor~Targeting)+
+  labs(x = "ng/mL (log10)", y = "CD8+/CD8- Proliferation")+
+  geom_hline(yintercept = 1, color = "blue")+
+  theme(strip.text = element_text(size = 8))
+```
+
+
+## Conclusions
+
+* A comparison of the Fragment CD4 antibody and its isotype control shows some targeting. 
+
+* Difficult to disentangle an anti-proliferative effect from cell death.
+
+* Viability wasn't great for this experiment even in our DMSO control, so could repeat with different donors. 
+
+## Questions
+
+* What is the effect of nanoparticles that aren't bound to CD4+ cells releasing drug?
+
+* Could we expose cells to nanoparticles and wash off un-bound particles?
+
+
