@@ -8,7 +8,7 @@ Determine toxicity of CD4 targeting nanoparticles with chemically conjugated MPA
 
 ## Experiment
 
-4 and 7 day exposures of cytokine stimulated HIV- human PBMC from 2 donrs to various nanoparticle formulations followed by phenotyping and viability measurements by flow cytometry.
+4 and 7 day exposures of cytokine stimulated HIV- human PBMC from 2 donors to various nanoparticle formulations followed by phenotyping and viability measurements by flow cytometry.
 
 ## Conditions
 
@@ -87,13 +87,7 @@ day7 <- left_join(day7, plate_mappings_day7, by = c("Well","Plate"))
 day7 <- mutate(day7, day = "7")
 
 day_both <- rbind(day4,day7)
-#day4 <- day4[,c(-"X",-"X.1")]
 
-#day_both <- day_both[,c(-1,-11)]
-#Removing columes 1,11 and 12 because they were empty/useless.
-
-
-#day7<- inner_join(day7, plate_mappings)
 
 
 ```
@@ -135,16 +129,16 @@ Plotting whole data together
 
 ```{r plot viability}
 ggplot(no_DMSO, aes(x = log10(MPA_ng_per_mL), y = Live, color = Donor, shape = day)) + 
-    geom_hline(data = dmso, aes(yintercept = Live)) +
+    geom_hline(data = dmso, aes(yintercept = Live, color = Donor)) +
     geom_point(size = 2) +
     facet_grid(Drug~Targeting+Formulation) + 
-    #stat_summary(fun.y = "mean", geom = "line", aes(group = Formulation)) + 
-    xlab("MPA_Concentration")
+    stat_summary(fun.y = "mean", geom = "line", aes(group = interaction(Donor, day))) + 
+    xlab("MPA Concentration (ng/mL)")
 ```
 
 
 
-Comparing Free MPA vs nanoparticles conjugated with MPA.
+### Comparing Free MPA vs nanoparticles conjugated with MPA.
 
 ```{r Effect of Free MPA vs NP on the cells}
 
@@ -153,15 +147,15 @@ MPA_cc <- no_DMSO %>%
  filter(Drug != "no drug")
 
 ggplot(MPA_cc, aes(x = log10(MPA_ng_per_mL), y = Live, color = Donor)) + 
-    geom_hline(data = dmso, aes(yintercept = Live)) +
+    geom_hline(data = dmso, aes(yintercept = Live, color = Donor)) +
     geom_point(size = 2) +
     facet_grid(day~Formulation) + 
-    xlab("MPA_Concentration")+
+    xlab("MPA Concentration (ng/mL)")+
   stat_summary(fun.y = "mean", geom = "line", aes(group = Donor))
 
 ```
 
-Effect of free Nanoparticles (Not conjugated with MPA) on different targetings.
+### Effect of Nanoparticles only (Not conjugated with MPA)
 
 
 ```{r targeting effects of NP only}
@@ -171,16 +165,16 @@ targeting_only <- no_DMSO %>%
 
 ggplot(targeting_only, aes(x = NP_mg_per_mL, y = Live, color = Donor)) + 
   scale_x_log10()+
-    geom_hline(data = dmso, aes(yintercept = Live)) +
+    geom_hline(data = dmso, aes(yintercept = Live, color = Donor)) +
     geom_point(size = 2) +
     facet_grid(day~Targeting) + 
-    xlab("Nanoparticle Concentration")+
+    xlab("Nanoparticle Concentration (mg/mL)")+
   stat_summary(fun.y = "mean", geom = "line", aes(group = Donor))
 
 ```
 
 
-Effect of Nanoparticles conjugated with MPA on different targeting 
+### Effect of Nanoparticles conjugated with MPA on different targeting 
 
 ```{r }
 
@@ -189,16 +183,16 @@ targeting_drug_only <- no_DMSO %>%
 
 ggplot(targeting_drug_only, aes(x = NP_mg_per_mL, y = Live, color = Donor)) + 
   scale_x_log10()+
-    geom_hline(data = dmso, aes(yintercept = Live)) +
+    geom_hline(data = dmso, aes(yintercept = Live, color = Donor)) +
     geom_point(size = 2) +
     facet_grid(day~Targeting) + 
-    xlab("Nanoparticle Concentration")+
+    xlab("Nanoparticle Concentration (mg/mL)")+
   stat_summary(fun.y = "mean", geom = "line", aes(group = Donor))
 
 
 ```
 
-Comparing plate 1 and 5 with 2 and 6 - Comparing cells with and without MAP on day 4 and 7.
+### Comparing cells with and without MPA on day 4 and 7.
 ```{r }
 
 
@@ -207,10 +201,10 @@ Plate_1_2_5_6 <- no_DMSO %>%
 
 
 ggplot(Plate_1_2_5_6, aes(x = NP_mg_per_mL, y = Live, color = Donor)) + 
-    geom_hline(data = dmso, aes(yintercept = Live)) +
+    geom_hline(data = dmso, aes(yintercept = Live, color = Donor)) +
     geom_point(size = 2) +
     facet_grid(day~Targeting + Drug) + 
-    xlab("NP_Concentration") +
+    xlab("Nanoparticle Concentration (mg/mL)") +
     stat_summary(fun.y = "mean", geom = "line", aes(group = Donor)) + 
     scale_x_log10()
 
@@ -237,7 +231,9 @@ CD8Neg_high_count <- no_DMSO %>%
 high_count <- rbind( CD8_high_count, CD8Neg_high_count)
 ```
 
-Day 4: Percentage in gate in high count data where x axis = MPA Concentration.
+### Day 4: Percentage in gate
+
+Data not shown where CD8+ OR CD8- counts were <100 cells 
 ```{r }
 
 high_count %>%
@@ -247,13 +243,14 @@ ggplot(., aes(x = log10(MPA_ng_per_mL), Measurement )) +
   geom_point(aes(color = Gate))+
   stat_summary(fun.y = "mean", geom = "line", aes(group = Gate, color = Gate)) +
   facet_grid(Donor~Targeting)+
-  labs(x = "ng/mL (log10)", y = "Percent in gate")+
-  theme(strip.text = element_text(size = 8))
+  labs(x = " MPA Concentration ng/mL (log10)", y = "Percent in gate")
 
 ```
 
 
-Day 7: Percentage in gate in high count data where x axis = MPA Concentration..
+### Day 7: Percentage in gate
+
+Data not shown where CD8+ OR CD8- counts were <100 cells 
 
 ```{r }
 
@@ -264,12 +261,15 @@ ggplot(., aes(x = log10(MPA_ng_per_mL), Measurement )) +
   geom_point(aes(color = Gate))+
   stat_summary(fun.y = "mean", geom = "line", aes(group = Gate, color = Gate)) +
   facet_grid(Donor~Targeting)+
-  labs(x = "ng/mL (log10)", y = "Percent in gate")+
+  labs(x = "MPA Concentration ng/mL (log10)", y = "Percent in gate")+
   theme(strip.text = element_text(size = 8))
 
 ```
 
-Day 4: Percentage in gate in high count data where x axis = NP Concentration.
+### Day 4: Percentage in gate 
+
+Data not shown where CD8+ OR CD8- counts were <100 cells 
+
 ```{r }
 
 high_count %>%
@@ -279,13 +279,14 @@ ggplot(., aes(x = NP_mg_per_mL, Measurement )) +
   geom_point(aes(color = Gate))+
   stat_summary(fun.y = "mean", geom = "line", aes(group = Gate, color = Gate)) +
   facet_grid(Donor~Targeting)+
-  labs(x = "NP-mg/mL(log10)", y = "Percent in gate")+
-  theme(strip.text = element_text(size = 8)) + 
+  labs(x = " Nanoparticle Concentration, mg/mL(log10)", y = "Percent in gate")+
   scale_x_log10()
 
 ```
 
-Day 7: Percentage in gate in high count data  where x axis = NP Concentration.
+### Day 7: Percentage in gate
+
+Data not shown where CD8+ OR CD8- counts were <100 cells 
 
 ```{r }
 
@@ -296,14 +297,13 @@ ggplot(., aes(x = NP_mg_per_mL, Measurement )) +
   geom_point(aes(color = Gate))+
   stat_summary(fun.y = "mean", geom = "line", aes(group = Gate, color = Gate)) +
   facet_grid(Donor~Targeting)+
-  labs(x = "NP-mg/mL (log10)", y = "Percent in gate")+
-  theme(strip.text = element_text(size = 8)) + 
+  labs(x = "Nanoparticle Concentration, mg/mL (log10)", y = "Percent in gate") + 
   scale_x_log10()
 
 ```
 
 
-Conclusion:
+### Conclusions
 
 1) Donor B cells have more viability than Donor A cells and this effect is more pronounced in the nanoparticle treated cells.
 
@@ -315,3 +315,4 @@ Conclusion:
 
 4) Viability in cells treated with CD4_iso is more than cells treated with CD4.
 
+5) CD4+ staining does not work when you use CD4-targeting nanoparticles
